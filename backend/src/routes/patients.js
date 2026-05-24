@@ -830,4 +830,46 @@ router.get('/:recordID/careplans', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /seed-demo - Public route to clear and seed 20 rich demo patients for Sandeep Bhandari
+router.post('/seed-demo', async (req, res) => {
+  try {
+    const { getDemoPatients } = require('../utils/demoData');
+    const hospitalId = req.query.hospitalId || req.body.hospitalId || 'tuth_01';
+    const doctorName = req.query.doctorName || req.body.doctorName || 'Dr. Sandeep Bhandari';
+
+    console.log(`Clearing existing patients for hospital: ${hospitalId}...`);
+    await prisma.patient.deleteMany({
+      where: { hospitalId }
+    });
+
+    const demoPatients = getDemoPatients(hospitalId);
+    
+    // Override doctor name if passed
+    if (doctorName) {
+      demoPatients.forEach(p => {
+        p.inchargeDoctor = doctorName;
+        if (p.surgeon) {
+          p.surgeon = doctorName;
+        }
+      });
+    }
+
+    console.log(`Seeding ${demoPatients.length} rich demo patients...`);
+    for (const patientData of demoPatients) {
+      await prisma.patient.create({
+        data: patientData
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Successfully seeded ${demoPatients.length} demo patients for ${doctorName} in hospital ${hospitalId}.` 
+    });
+  } catch (error) {
+    console.error('Error seeding demo patients:', error);
+    res.status(500).json({ error: 'Failed to seed demo patients.', details: error.message });
+  }
+});
+
 module.exports = router;
+
