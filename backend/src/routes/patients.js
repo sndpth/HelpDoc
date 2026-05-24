@@ -832,6 +832,11 @@ router.get('/:recordID/careplans', authenticateToken, async (req, res) => {
 
 // POST /seed-demo - Public route to clear and seed 20 rich demo patients for Sandeep Bhandari
 router.post('/seed-demo', async (req, res) => {
+  const secret = req.query.secret || req.body.secret;
+  if (secret !== 'doctorsaap123') {
+    return res.status(403).json({ error: 'Forbidden: Invalid or missing secret.' });
+  }
+
   try {
     const { getDemoPatients } = require('../utils/demoData');
     const hospitalId = req.query.hospitalId || req.body.hospitalId || 'tuth_01';
