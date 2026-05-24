@@ -89,7 +89,78 @@ async function ensureDefaultRoomsAndMemberships() {
   }
 }
 
-seedDefaultHospital();
+async function seedAll() {
+  try {
+    // 1. Seed Hospital
+    const count = await prisma.hospital.count();
+    if (count === 0) {
+      await prisma.hospital.create({
+        data: {
+          id: 'tuth_01',
+          name: 'T.U. Teaching Hospital',
+          address: 'Maharajgunj, Kathmandu, Nepal'
+        }
+      });
+      console.log('Seeded default hospital: T.U. Teaching Hospital (tuth_01)');
+    }
+
+    // 2. Seed Mock Doctors and Nurses
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash('doctorsaap123', 10);
+    
+    const mockUsers = [
+      { phone: '9851000000', name: 'Dr. Sandeep Bhandari', specialty: 'Cardiothoracic Surgery', role: 'DOCTOR' },
+      { phone: '9851000001', name: 'Dr. Niraj Bam', specialty: 'Pulmonology', role: 'DOCTOR' },
+      { phone: '9851000002', name: 'Dr. Susan Giri', specialty: 'General Surgery', role: 'DOCTOR' },
+      { phone: '9851000003', name: 'Dr. Alok Pradhan', specialty: 'Orthopedics', role: 'DOCTOR' },
+      { phone: '9851000010', name: 'Nurse Priya Thapa', specialty: 'General Ward', role: 'NURSE' },
+      { phone: '9851000011', name: 'Nurse Sita Dahal', specialty: 'ICU', role: 'NURSE' },
+      { phone: '9851000012', name: 'Nurse Ranjita KC', specialty: 'OT', role: 'NURSE' },
+      { phone: '9851000013', name: 'Nurse Anupa Sen', specialty: 'General Ward', role: 'NURSE' }
+    ];
+
+    console.log('Checking and seeding mock users...');
+    for (const u of mockUsers) {
+      await prisma.user.upsert({
+        where: { phone: u.phone },
+        update: {
+          name: u.name,
+          specialty: u.specialty,
+          role: u.role,
+          hospitalId: 'tuth_01'
+        },
+        create: {
+          phone: u.phone,
+          password: hashedPassword,
+          name: u.name,
+          specialty: u.specialty,
+          role: u.role,
+          hospitalId: 'tuth_01'
+        }
+      });
+    }
+
+    // 3. Ensure rooms and memberships
+    await ensureDefaultRoomsAndMemberships();
+
+    // 4. Seed Patients if none exist
+    const patientCount = await prisma.patient.count();
+    if (patientCount === 0) {
+      const { getDemoPatients } = require('./utils/demoData');
+      const demoPatients = getDemoPatients('tuth_01');
+      console.log(`Auto-seeding ${demoPatients.length} mock patients...`);
+      for (const p of demoPatients) {
+        await prisma.patient.create({
+          data: p
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error seeding all data:', error);
+  }
+}
+
+seedAll();
 
 // Middleware
 app.use(cors());

@@ -866,9 +866,76 @@ router.post('/seed-demo', async (req, res) => {
       });
     }
 
+    // Seed mock doctors and nurses
+    const bcrypt = require('bcryptjs');
+    const hashedPassword = await bcrypt.hash('doctorsaap123', 10);
+    
+    const mockUsers = [
+      { phone: '9851000000', name: 'Dr. Sandeep Bhandari', specialty: 'Cardiothoracic Surgery', role: 'DOCTOR' },
+      { phone: '9851000001', name: 'Dr. Niraj Bam', specialty: 'Pulmonology', role: 'DOCTOR' },
+      { phone: '9851000002', name: 'Dr. Susan Giri', specialty: 'General Surgery', role: 'DOCTOR' },
+      { phone: '9851000003', name: 'Dr. Alok Pradhan', specialty: 'Orthopedics', role: 'DOCTOR' },
+      { phone: '9851000010', name: 'Nurse Priya Thapa', specialty: 'General Ward', role: 'NURSE' },
+      { phone: '9851000011', name: 'Nurse Sita Dahal', specialty: 'ICU', role: 'NURSE' },
+      { phone: '9851000012', name: 'Nurse Ranjita KC', specialty: 'OT', role: 'NURSE' },
+      { phone: '9851000013', name: 'Nurse Anupa Sen', specialty: 'General Ward', role: 'NURSE' }
+    ];
+
+    console.log('Seeding mock users...');
+    for (const u of mockUsers) {
+      await prisma.user.upsert({
+        where: { phone: u.phone },
+        update: {
+          name: u.name,
+          specialty: u.specialty,
+          role: u.role,
+          hospitalId
+        },
+        create: {
+          phone: u.phone,
+          password: hashedPassword,
+          name: u.name,
+          specialty: u.specialty,
+          role: u.role,
+          hospitalId
+        }
+      });
+    }
+
+    // Add them to default rooms
+    const defaultRooms = await prisma.chatRoom.findMany({
+      where: {
+        hospitalId,
+        type: 'GROUP',
+        name: { in: ['General Ward Channel', 'ICU Channel', 'OT Channel'] }
+      }
+    });
+
+    const dbUsers = await prisma.user.findMany({
+      where: { phone: { in: mockUsers.map(mu => mu.phone) } }
+    });
+
+    for (const room of defaultRooms) {
+      for (const user of dbUsers) {
+        await prisma.chatRoomMember.upsert({
+          where: {
+            chatRoomId_userId: {
+              chatRoomId: room.id,
+              userId: user.id
+            }
+          },
+          update: {},
+          create: {
+            chatRoomId: room.id,
+            userId: user.id
+          }
+        }).catch(err => console.log('Error adding user to room:', err.message));
+      }
+    }
+
     res.json({ 
       success: true, 
-      message: `Successfully seeded ${demoPatients.length} demo patients for ${doctorName} in hospital ${hospitalId}.` 
+      message: `Successfully seeded ${demoPatients.length} demo patients, 4 doctors, and 4 nurses in hospital ${hospitalId}.` 
     });
   } catch (error) {
     console.error('Error seeding demo patients:', error);
