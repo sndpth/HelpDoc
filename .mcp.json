@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "UnityMCP": {
+      "command": "C:/Users/ASUS/DoctorSaap/Assets/StreamingAssets/realvirtual-MCP/python/python.exe",
+      "args": [
+        "C:/Users/ASUS/DoctorSaap/Assets/StreamingAssets/realvirtual-MCP/unity_mcp_server.py"
+      ]
+    }
+  }
+}

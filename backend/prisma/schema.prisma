@@ -1,0 +1,272 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Hospital {
+  id          String   @id @default(uuid())
+  name        String
+  address     String?
+  bedCapacity Int      @default(50)
+  users       User[]
+  patients    Patient[]
+  chatRooms   ChatRoom[]
+  createdAt   DateTime @default(now())
+}
+
+model User {
+  id          String           @id @default(uuid())
+  email       String?          @unique
+  phone       String           @unique
+  password    String
+  name        String
+  specialty   String?
+  role        String           @default("DOCTOR") // DOCTOR | NURSE | ADMIN
+  hospitalId  String
+  hospital    Hospital         @relation(fields: [hospitalId], references: [id])
+  memberships ChatRoomMember[]
+  messages    Message[]
+  createdAt   DateTime         @default(now())
+}
+
+model Patient {
+  recordID                String         @id @default(uuid())
+  fullName                String
+  ipdId                   String?
+  patientId               String?
+  fileNo                  String?
+  ipNumber                String?
+  age                     Int
+  gender                  String
+  address                 String
+  dateOfAdmission         String
+  admissionTime           String?
+  dateOfOperation         String?
+  dateOfDischarge         String?
+  stayDuration            String?
+  postOpStay              String?
+  wardName                String?        @default("A SURESH WAGLE GENERAL WARD")
+  roomType                String?        @default("SINGLE BED CABIN")
+  bedNo                   String?
+  inchargeDoctor          String?        @default("Dr. Niraj Bam")
+  additionalDoctors       String?        // Comma-separated list of doctors
+  status                  String         @default("Admitted") // Admitted | Discharged | Deceased
+  type                    String         @default("IPD") // IPD | OPD | ER
+  
+  diagnosis               String?
+  natureOfDisease         String?
+  durationOfIllness       String?
+  historyOfPresentIllness String?
+  pastHistory             String?
+  comorbidities           String?
+  
+  generalExam             String?
+  weight                  String?
+  height                  String?
+  abdomenExam             String?
+  otherFindings           String?
+  
+  usg                     String?        @default("Normal")
+  ctScan                  String?        @default("Normal")
+  attachments             String?        // JSON String representation of attachment URIs
+  
+  operation               String?
+  operationFindings       String?
+  surgeon                 String?
+  assistant1              String?
+  assistant2              String?
+  postOpProgress          String?
+  hpeReport               String?
+  
+  bloodTransfusion        String?        @default("No")
+  wbPrbcUnits             String?        @default("0")
+  ffpUnits                String?        @default("0")
+  prpUnits                String?        @default("0")
+  complications           String?        // Comma-separated list
+  complicationGrade       String?        @default("I")
+  
+  hospitalId              String
+  hospital                Hospital       @relation(fields: [hospitalId], references: [id])
+  
+  vitalsHistory           Vitals[]
+  dailyReports            ProgressNote[]
+  investigations          LabReport[]
+  medications             Medication[]
+  chatRooms               ChatRoom[]
+  dischargeSummaries      DischargeSummary[]
+  appointments            Appointment[]
+  shiftHandovers          ShiftHandover[]
+  carePlans               CarePlan[]
+  
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+}
+
+model Vitals {
+  id          String   @id @default(uuid())
+  patientId   String
+  patient     Patient  @relation(fields: [patientId], references: [recordID], onDelete: Cascade)
+  date        String
+  time        String
+  hr          Int
+  bpSystolic  Int
+  bpDiastolic Int
+  temp        Float
+  spo2        Int
+  rr          Int
+  sugar       Int
+  recordedBy  String?
+  createdAt   DateTime @default(now())
+}
+
+model ProgressNote {
+  id        String   @id @default(uuid())
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [recordID], onDelete: Cascade)
+  date      String
+  time      String
+  note      String
+  author    String?
+  role      String?
+  createdAt DateTime @default(now())
+}
+
+model LabReport {
+  id        String   @id @default(uuid())
+  patientId String
+  patient   Patient  @relation(fields: [patientId], references: [recordID], onDelete: Cascade)
+  date      String
+  hb        String?
+  tc        String?
+  neu       String?
+  lym       String?
+  platelets String?
+  pt        String?
+  inr       String?
+  createdAt DateTime @default(now())
+}
+
+model Medication {
+  id              String   @id @default(uuid())
+  patientId       String
+  patient         Patient  @relation(fields: [patientId], references: [recordID], onDelete: Cascade)
+  name            String
+  route           String
+  frequency       String
+  indication      String
+  status          String   @default("active") // active | stopped
+  administrations MedicationAdministration[]
+  createdAt       DateTime @default(now())
+}
+
+model ChatRoom {
+  id         String           @id @default(uuid())
+  name       String?          // e.g. "General Ward Team", "ICU Channel", or patient name
+  type       String           @default("DIRECT") // DIRECT | GROUP | PATIENT
+  patientId  String?          // links to Patient if type == PATIENT
+  patient    Patient?         @relation(fields: [patientId], references: [recordID], onDelete: Cascade)
+  hospitalId String
+  hospital   Hospital         @relation(fields: [hospitalId], references: [id])
+  members    ChatRoomMember[]
+  messages   Message[]
+  createdAt  DateTime         @default(now())
+}
+
+model ChatRoomMember {
+  id         String   @id @default(uuid())
+  chatRoomId String
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  
+  @@unique([chatRoomId, userId])
+}
+
+model Message {
+  id              String   @id @default(uuid())
+  chatRoomId      String
+  chatRoom        ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  senderId        String
+  sender          User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  text            String?
+  sharedPatientId String?  // ID of the shared patient record, if any
+  imageUri        String?  // for rich media sharing
+  createdAt       DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  userName   String
+  action     String   // CREATE | UPDATE | DELETE | VIEW | STATUS_CHANGE
+  resource   String   // PATIENT | VITALS | MEDICATION | LAB | NOTE | DISCHARGE
+  resourceId String?
+  patientId  String?
+  details    String?  // JSON string with before/after or context
+  createdAt  DateTime @default(now())
+}
+
+model DischargeSummary {
+  id                     String   @id @default(uuid())
+  patientId              String
+  patient                Patient  @relation(fields: [patientId], references: [recordID], onDelete: Cascade)
+  admissionDate          String
+  dischargeDate          String
+  diagnosis              String
+  procedures             String?
+  medicationsOnDischarge String?
+  followUpInstructions   String?
+  generatedBy            String
+  createdAt              DateTime @default(now())
+}
+
+model Appointment {
+  id         String   @id @default(uuid())
+  patientId  String
+  patient    Patient  @relation(fields: [patientId], references: [recordID], onDelete: Cascade)
+  doctorName String
+  date       String   // Date of appointment
+  time       String   // Time of appointment
+  status     String   @default("Scheduled") // Scheduled | Completed | Cancelled
+  notes      String?
+  createdAt  DateTime @default(now())
+}
+
+model MedicationAdministration {
+  id             String     @id @default(uuid())
+  medicationId   String
+  medication     Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  administeredBy String     // Nurse/clinician name
+  administeredAt DateTime   @default(now())
+  status         String     // Given | Held | Refused
+  notes          String?
+}
+
+model ShiftHandover {
+  id            String   @id @default(uuid())
+  patientId     String
+  patient       Patient  @relation(fields: [patientId], references: [recordID], onDelete: Cascade)
+  date          String
+  shift         String   // Morning | Evening | Night
+  outgoingStaff String   // Outgoing nurse name
+  incomingStaff String   // Incoming nurse name
+  notes         String   // Handover details
+  createdAt     DateTime @default(now())
+}
+
+model CarePlan {
+  id               String   @id @default(uuid())
+  patientId        String
+  patient          Patient  @relation(fields: [patientId], references: [recordID], onDelete: Cascade)
+  nursingDiagnosis String
+  goals            String
+  interventions    String
+  evaluation       String?
+  authoredBy       String
+  createdAt        DateTime @default(now())
+}

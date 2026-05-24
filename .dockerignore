@@ -1,0 +1,12 @@
+node_modules
+backend/node_modules
+mobile-app/node_modules
+web-app/node_modules
+backend/prisma/*.db
+backend/prisma/*.db-journal
+backend/uploads
+Library
+Temp
+Logs
+UserSettings
+*.apk

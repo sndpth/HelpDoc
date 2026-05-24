@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DoctorSaap Web App</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <i class="ri-hospital-line logo-icon"></i>
+                <h2>DocConsult</h2>
+            </div>
+            <ul class="nav-links">
+                <li class="nav-item active" data-view="chat-view">
+                    <i class="ri-message-3-line"></i> Chat
+                </li>
+                <li class="nav-item" data-view="patients-list-view">
+                    <i class="ri-folder-user-line"></i> Patient Records
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Chat View -->
+            <section id="chat-view" class="view active">
+                <div class="chat-container">
+                    <div class="chat-sidebar">
+                        <div class="chat-header">
+                            <h3>Consultations</h3>
+                            <button class="icon-btn"><i class="ri-add-line"></i></button>
+                        </div>
+                        <div class="contact-list">
+                            <div class="contact active">
+                                <img src="https://i.pravatar.cc/150?img=68" alt="Dr. Smith" class="avatar">
+                                <div class="contact-info">
+                                    <h4>Dr. Smith</h4>
+                                    <p>Can you review this case?</p>
+                                </div>
+                            </div>
+                            <div class="contact">
+                                <img src="https://i.pravatar.cc/150?img=47" alt="Dr. Patel" class="avatar">
+                                <div class="contact-info">
+                                    <h4>Dr. Patel</h4>
+                                    <p>Thanks for the update.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-area">
+                        <div class="chat-area-header">
+                            <div class="chat-partner">
+                                <img src="https://i.pravatar.cc/150?img=68" alt="Dr. Smith" class="avatar">
+                                <div>
+                                    <h4>Dr. Smith</h4>
+                                    <span class="status online">Online</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="message received">
+                                <div class="msg-bubble">
+                                    Hello! Could you share the details for the difficult case we discussed earlier?
+                                </div>
+                                <span class="msg-time">10:42 AM</span>
+                            </div>
+                        </div>
+                        <div class="chat-input-area">
+                            <button id="attach-record-btn" class="icon-btn" title="Attach Patient Record">
+                                <i class="ri-attachment-line"></i>
+                            </button>
+                            <input type="text" id="chat-input" placeholder="Type a message...">
+                            <button id="send-msg-btn" class="icon-btn primary"><i class="ri-send-plane-fill"></i></button>
+                        </div>
+                        
+                        <!-- Attachment Popup -->
+                        <div id="attachment-popup" class="popup hidden">
+                            <div class="popup-header">
+                                <h4>Share Patient Record</h4>
+                                <button class="close-popup-btn"><i class="ri-close-line"></i></button>
+                            </div>
+                            <div class="popup-body" id="share-patient-list">
+                                <!-- Patient list populated by JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Patients List View -->
+            <section id="patients-list-view" class="view hidden">
+                <div class="page-header">
+                    <h2>Patient Records</h2>
+                    <button class="btn primary" id="add-patient-btn"><i class="ri-add-line"></i> New Patient</button>
+                </div>
+                <div class="search-bar">
+                    <i class="ri-search-line"></i>
+                    <input type="text" id="patient-search" placeholder="Search by name or IP number...">
+                </div>
+                <div class="patients-grid" id="patients-grid">
+                    <!-- Patient cards populated by JS -->
+                </div>
+            </section>
+
+            <!-- Patient Form View (Edit/Create) -->
+            <section id="patient-form-view" class="view hidden">
+                <div class="page-header">
+                    <button class="icon-btn" id="back-to-patients-btn"><i class="ri-arrow-left-line"></i></button>
+                    <h2 id="form-title">New Patient Record</h2>
+                    <div class="form-actions">
+                        <button class="btn secondary" id="delete-patient-btn" style="display: none;"><i class="ri-delete-bin-line"></i> Delete</button>
+                        <button class="btn primary" id="save-patient-btn"><i class="ri-save-line"></i> Save Record</button>
+                        <button class="btn primary" id="edit-patient-btn" style="display: none;"><i class="ri-edit-line"></i> Edit</button>
+                    </div>
+                </div>
+
+                <div class="form-container">
+                    <!-- Tabs for navigating the large form -->
+                    <div class="form-tabs">
+                        <button class="tab-btn active" data-target="tab-demographics">Demographics</button>
+                        <button class="tab-btn" data-target="tab-history">History & Exam</button>
+                        <button class="tab-btn" data-target="tab-imaging">Imaging & Surgery</button>
+                        <button class="tab-btn" data-target="tab-complications">Complications & Lab</button>
+                    </div>
+
+                    <form id="patient-form">
+                        <!-- Demographics Tab -->
+                        <div class="tab-content active" id="tab-demographics">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Full Name *</label>
+                                    <input type="text" id="fullName" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>IP Number *</label>
+                                    <input type="text" id="ipNumber" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Age</label>
+                                    <input type="number" id="age">
+                                </div>
+                                <div class="form-group">
+                                    <label>Gender</label>
+                                    <select id="gender">
+                                        <option>Male</option>
+                                        <option>Female</option>
+                                        <option>Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Address</label>
+                                    <input type="text" id="address">
+                                </div>
+                                <div class="form-group">
+                                    <label>Date of Admission (dd-mm-yyyy)</label>
+                                    <input type="text" id="dateOfAdmission" placeholder="dd-mm-yyyy">
+                                </div>
+                                <div class="form-group">
+                                    <label>Date of Operation (dd-mm-yyyy)</label>
+                                    <input type="text" id="dateOfOperation" placeholder="dd-mm-yyyy">
+                                </div>
+                                <div class="form-group">
+                                    <label>Date of Discharge (dd-mm-yyyy)</label>
+                                    <input type="text" id="dateOfDischarge" placeholder="dd-mm-yyyy">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Diagnosis</label>
+                                    <input type="text" id="diagnosis">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- History & Exam Tab -->
+                        <div class="tab-content" id="tab-history">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Nature of Disease</label>
+                                    <select id="natureOfDisease">
+                                        <option>Malignant</option>
+                                        <option>Benign</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Duration of Illness</label>
+                                    <input type="text" id="durationOfIllness">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>History of Present Illness</label>
+                                    <textarea id="historyOfPresentIllness" rows="3"></textarea>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Past History</label>
+                                    <textarea id="pastHistory" rows="2"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Comorbid Conditions</label>
+                                    <select id="comorbidConditions">
+                                        <option>None</option>
+                                        <option>Diabetes</option>
+                                        <option>Hypertension</option>
+                                        <option>Both</option>
+                                        <option>Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>General Exam</label>
+                                    <textarea id="generalExam" rows="2"></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label>Weight (kg)</label>
+                                    <input type="number" step="0.1" id="weightKg">
+                                </div>
+                                <div class="form-group">
+                                    <label>Height (m)</label>
+                                    <input type="number" step="0.01" id="heightM">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Abdomen Examination</label>
+                                    <textarea id="abdomenExamination" rows="2"></textarea>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Other Relevant Findings</label>
+                                    <textarea id="otherRelevantFindings" rows="2"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Imaging & Surgery Tab -->
+                        <div class="tab-content" id="tab-imaging">
+                            <div class="form-grid">
+                                <div class="form-group full-width">
+                                    <label>USG Findings</label>
+                                    <textarea id="usgFindings" rows="2"></textarea>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>CT Scan Findings</label>
+                                    <textarea id="ctScanFindings" rows="2"></textarea>
+                                </div>
+                                <div class="form-group full-width section-title">
+                                    <h4>Surgical Details</h4>
+                                    <hr>
+                                </div>
+                                <div class="form-group">
+                                    <label>Operation Name</label>
+                                    <input type="text" id="operationName">
+                                </div>
+                                <div class="form-group">
+                                    <label>Surgeon Name</label>
+                                    <input type="text" id="surgeonName">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Operation Findings</label>
+                                    <textarea id="operationFindings" rows="2"></textarea>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Post Op Progress</label>
+                                    <textarea id="postOpProgress" rows="2"></textarea>
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>HPE Report</label>
+                                    <textarea id="hpeReport" rows="2"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Complications Tab -->
+                        <div class="tab-content" id="tab-complications">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label>Blood Transfusion</label>
+                                    <select id="bloodTransfusion">
+                                        <option value="false">No</option>
+                                        <option value="true">Yes</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Units WB/PRBC</label>
+                                    <input type="number" id="unitsWB_PRBC">
+                                </div>
+                                <div class="form-group">
+                                    <label>Units FFP</label>
+                                    <input type="number" id="unitsFFP">
+                                </div>
+                                <div class="form-group">
+                                    <label>Units PRP</label>
+                                    <input type="number" id="unitsPRP">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label>Complications</label>
+                                    <input type="text" id="complication1" placeholder="Complication 1">
+                                    <input type="text" id="complication2" placeholder="Complication 2" style="margin-top: 8px;">
+                                    <input type="text" id="complication3" placeholder="Complication 3" style="margin-top: 8px;">
+                                </div>
+                                <div class="form-group">
+                                    <label>Complication Grade</label>
+                                    <input type="text" id="complicationGrade">
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Record View Modal (when a record is shared in chat) -->
+    <div id="record-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Patient Record Viewer</h3>
+                <button class="close-modal-btn"><i class="ri-close-line"></i></button>
+            </div>
+            <div class="modal-body" id="record-modal-body">
+                <!-- Content injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
