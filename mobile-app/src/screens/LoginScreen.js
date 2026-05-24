@@ -53,9 +53,17 @@ const LoginScreen = () => {
 
   const handleSaveSettings = () => {
     let cleanUrl = inputUrl.trim();
-    if (cleanUrl && !cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+    
+    // Auto-convert Hugging Face space dashboard URL to direct API URL
+    const hfSpaceMatch = cleanUrl.match(/https?:\/\/huggingface\.co\/spaces\/([^\/]+)\/([^\/\?#]+)/i);
+    if (hfSpaceMatch) {
+      const username = hfSpaceMatch[1];
+      const spacename = hfSpaceMatch[2];
+      cleanUrl = `https://${username}-${spacename}.hf.space`;
+    } else if (cleanUrl && !cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
       cleanUrl = 'http://' + cleanUrl;
     }
+    
     setApiUrl(cleanUrl);
     setShowSettings(false);
   };
