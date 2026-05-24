@@ -1,5 +1,8 @@
 FROM node:18-alpine
 
+# Install OpenSSL and glibc compatibility for Prisma engine binary on Alpine Linux
+RUN apk add --no-cache openssl libc6-compat
+
 WORKDIR /app
 
 # Copy package configuration and install dependencies
@@ -13,7 +16,7 @@ RUN npx prisma generate
 # Copy the rest of the application files
 COPY . .
 
-# Ensure all binaries under node_modules are executable (solves sh: prisma: Permission denied)
+# Ensure all binaries under node_modules are executable
 RUN chmod -R 755 /app/node_modules
 
 # Change ownership of the app directory to user 1000 (Hugging Face user)
