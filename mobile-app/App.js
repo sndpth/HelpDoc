@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, StatusBar } from 'react-native';
 import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Stethoscope, MessageCircle, User } from 'lucide-react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, runOnJS } from 'react-native-reanimated';
 import { theme } from './src/constants/theme';
 
 import EMRDashboard from './src/screens/EMRDashboard';
@@ -25,7 +26,7 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 const EMRStack = () => (
-  <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: theme.colors.surface }, headerTintColor: theme.colors.primary, headerTitleStyle: { fontWeight: '700' }, gestureEnabled: true }}>
+  <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: theme.colors.surface }, headerTintColor: theme.colors.primary, headerTitleStyle: { fontWeight: '700', fontFamily: theme.typography.fontFamily }, gestureEnabled: true, animation: 'slide_from_right' }}>
     <Stack.Screen name="Dashboard" component={EMRDashboard} options={{ headerShown: false }} />
     <Stack.Screen name="PatientDetail" component={PatientDetail} options={{ headerShown: false }} />
     <Stack.Screen name="VitalsScreen" component={VitalsScreen} options={{ headerShown: false }} />
@@ -37,7 +38,7 @@ const EMRStack = () => (
 );
 
 const ChatStack = () => (
-  <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: theme.colors.surface }, headerTintColor: theme.colors.primary, headerTitleStyle: { fontWeight: '700' }, gestureEnabled: true }}>
+  <Stack.Navigator screenOptions={{ headerStyle: { backgroundColor: theme.colors.surface }, headerTintColor: theme.colors.primary, headerTitleStyle: { fontWeight: '700', fontFamily: theme.typography.fontFamily }, gestureEnabled: true, animation: 'slide_from_right' }}>
     <Stack.Screen name="ChatList" component={ChatListScreen} options={{ headerShown: false }} />
     <Stack.Screen name="ChatThread" component={ChatScreen} options={{ headerShown: false }} />
     <Stack.Screen name="PatientDetail" component={PatientDetail} options={{ headerShown: false }} />
@@ -81,14 +82,18 @@ function MainTabs() {
           headerShown: false,
           tabBarStyle: {
             backgroundColor: theme.colors.surface,
-            borderTopWidth: 1,
-            borderTopColor: theme.colors.border,
+            borderTopWidth: 0,
             paddingBottom: tabBarBottomPadding,
             paddingTop: 8,
             height: 54 + tabBarBottomPadding,
             display: displayStyle,
+            shadowColor: theme.colors.primary,
+            shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: 0.05,
+            shadowRadius: 8,
+            elevation: 8,
           },
-          tabBarLabelStyle: { fontWeight: '600', fontSize: 11 }
+          tabBarLabelStyle: { fontWeight: '600', fontSize: 11, fontFamily: theme.typography.fontFamily }
         };
       }}
     >
@@ -118,7 +123,7 @@ function MainTabs() {
       />
       <Tab.Screen name="Profile">
           {() => (
-            <Stack.Navigator screenOptions={{ headerShown: false, gestureEnabled: true }}>
+            <Stack.Navigator screenOptions={{ headerShown: false, gestureEnabled: true, animation: 'slide_from_right' }}>
               <Stack.Screen name="ProfileMain" component={ProfileScreen} />
               <Stack.Screen name="AuditLog" component={AuditLogScreen} />
               <Stack.Screen name="Analytics" component={AnalyticsScreen} />
@@ -132,6 +137,8 @@ function MainTabs() {
 export default function App() {
   const isLoggedIn = useStore((state) => state.isLoggedIn);
   const [isReady, setIsReady] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+  const splashOpacity = useSharedValue(1);
 
   useEffect(() => {
     // Wait for Zustand to rehydrate from AsyncStorage
@@ -140,6 +147,16 @@ export default function App() {
     if (useStore.persist.hasHydrated()) setIsReady(true);
     return () => { if (unsub) unsub(); };
   }, []);
+
+  useEffect(() => {
+    if (isReady) {
+      splashOpacity.value = withTiming(0, { duration: 400 }, (finished) => {
+        if (finished) {
+          runOnJS(setShowSplash)(false);
+        }
+      });
+    }
+  }, [isReady]);
 
   useEffect(() => {
     if (isReady && isLoggedIn) {
@@ -172,25 +189,29 @@ export default function App() {
     }
   }, [isReady, isLoggedIn]);
 
-  if (!isReady) {
-    return (
-      <SafeAreaProvider>
-        <View style={{ flex: 1, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-            <Stethoscope size={28} color="#FFF" />
-          </View>
-          <Text style={{ fontSize: 20, fontWeight: '900', color: theme.colors.primary, marginBottom: 4 }}>HelpDoc</Text>
-          <Text style={{ fontSize: 12, color: theme.colors.textSecondary }}>Loading clinical workspace...</Text>
-        </View>
-      </SafeAreaProvider>
-    );
-  }
+  const splashAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: splashOpacity.value,
+    };
+  });
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer>
-        {isLoggedIn ? <MainTabs /> : <LoginScreen />}
-      </NavigationContainer>
+      <View style={{ flex: 1 }}>
+        <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+        <NavigationContainer>
+          {isLoggedIn ? <MainTabs /> : <LoginScreen />}
+        </NavigationContainer>
+        {showSplash && (
+          <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', zIndex: 999 }, splashAnimatedStyle]}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Stethoscope size={28} color="#FFF" />
+            </View>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: theme.colors.primary, marginBottom: 4, fontFamily: theme.typography.fontFamily }}>HelpDoc</Text>
+            <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontFamily: theme.typography.fontFamily }}>Loading clinical workspace...</Text>
+          </Animated.View>
+        )}
+      </View>
     </SafeAreaProvider>
   );
 }

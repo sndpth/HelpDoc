@@ -12,7 +12,7 @@ const getApiUrl = () => {
     const ip = hostUri.split(':')[0];
     return `http://${ip}:3000`;
   }
-  return 'http://localhost:3000';
+  return 'https://sndpth-doctorsaap-backend.hf.space';
 };
 
 const DEFAULT_API_URL = getApiUrl();

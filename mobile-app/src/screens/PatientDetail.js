@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, StatusBar, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { ChevronLeft, Edit2, Activity, ClipboardList, Stethoscope, Pill, FileText, UserCheck, ChevronRight, X, User, ArrowRightLeft, Plus, MessageSquare, AlertCircle, FileCheck, Shield, BookOpen, Trash2, ClipboardCheck } from 'lucide-react-native';
+import Animated, { FadeIn, ZoomIn, SlideInDown, FadeInLeft, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import AnimatedPressable from '../components/AnimatedPressable';
+import AnimatedMount from '../components/AnimatedMount';
 import { theme } from '../constants/theme';
 import ClinicalCanvas from '../components/ClinicalCanvas';
+import BottomSheet from '../components/BottomSheet';
 import useStore from '../store/useStore';
 import { sendRoomMessage } from '../services/socket';
 
@@ -41,6 +45,42 @@ const PatientDetail = ({ route, navigation }) => {
   const [activeModal, setActiveModal] = useState(null); // 'diagnosis' | 'medication' | 'labs' | 'soap'
   const [selectedNoteTab, setSelectedNoteTab] = useState('Clinical'); // 'Clinical' | 'Consultant' | 'Nurse'
   const [inlineNoteText, setInlineNoteText] = useState('');
+
+  const pulseOpacity = useSharedValue(0.85);
+  const noteHighlight = useSharedValue(0);
+
+  useEffect(() => {
+    pulseOpacity.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1000 }),
+        withTiming(0.85, { duration: 1000 })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const triggerNoteHighlight = () => {
+    noteHighlight.value = 1;
+    noteHighlight.value = withTiming(0, { duration: 1200 });
+  };
+
+  const pulseStyle = useAnimatedStyle(() => {
+    return {
+      opacity: pulseOpacity.value,
+    };
+  });
+
+  const noteHighlightStyle = useAnimatedStyle(() => {
+    const backgroundColor = noteHighlight.value > 0
+      ? `rgba(255, 237, 213, ${noteHighlight.value})`
+      : 'transparent';
+    return {
+      backgroundColor,
+      borderRadius: theme.borderRadius.lg,
+      padding: noteHighlight.value > 0 ? 4 : 0,
+    };
+  });
   
   const [showAddLab, setShowAddLab] = useState(false);
   const [newLab, setNewLab] = useState({
@@ -307,16 +347,25 @@ const PatientDetail = ({ route, navigation }) => {
 
       {/* Header bar */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.backBtn}>
+        <AnimatedPressable 
+          onPress={handleGoBack} 
+          style={styles.backBtn}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
           <ChevronLeft size={24} color={theme.colors.primary} />
-        </TouchableOpacity>
+        </AnimatedPressable>
         <Text style={styles.headerTitle}>Patient Detail</Text>
-        <TouchableOpacity 
+        <AnimatedPressable 
           style={styles.editBtn} 
           onPress={() => navigation.navigate('AddPatient', { patient })}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Edit patient details"
+          accessibilityRole="button"
         >
           <Edit2 size={16} color={theme.colors.primary} />
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
 
       {pendingCount > 0 && (
@@ -330,34 +379,36 @@ const PatientDetail = ({ route, navigation }) => {
 
       {/* Status Change Bar */}
       {patient.status !== 'Deceased' && (
-        <TouchableOpacity
-          style={styles.statusChangeBar}
-          onPress={() => {
-            const current = patient.status || 'Admitted';
-            const next = current === 'Admitted' ? 'Discharged' : 'Deceased';
-            const message = next === 'Discharged'
-              ? `Discharge ${patient.fullName}? This will set today as discharge date.`
-              : `Mark ${patient.fullName} as Deceased? This action is significant.`;
-            Alert.alert(
-              `Change Status to ${next}`,
-              message,
-              [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                  text: `Yes, ${next === 'Discharged' ? 'Discharge' : 'Mark Deceased'}`,
-                  style: next === 'Deceased' ? 'destructive' : 'default',
-                  onPress: () => changePatientStatus(patient.recordID, next)
-                }
-              ]
-            );
-          }}
-          activeOpacity={0.8}
-        >
-          <ArrowRightLeft size={14} color={patient.status === 'Admitted' ? '#10B981' : '#EF4444'} />
-          <Text style={[styles.statusChangeText, { color: patient.status === 'Admitted' ? '#10B981' : '#EF4444' }]}>
-            {(patient.status || 'Admitted') === 'Admitted' ? 'Discharge Patient' : 'Mark Deceased'}
-          </Text>
-        </TouchableOpacity>
+        <Animated.View style={pulseStyle}>
+          <TouchableOpacity
+            style={styles.statusChangeBar}
+            onPress={() => {
+              const current = patient.status || 'Admitted';
+              const next = current === 'Admitted' ? 'Discharged' : 'Deceased';
+              const message = next === 'Discharged'
+                ? `Discharge ${patient.fullName}? This will set today as discharge date.`
+                : `Mark ${patient.fullName} as Deceased? This action is significant.`;
+              Alert.alert(
+                `Change Status to ${next}`,
+                message,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: `Yes, ${next === 'Discharged' ? 'Discharge' : 'Mark Deceased'}`,
+                    style: next === 'Deceased' ? 'destructive' : 'default',
+                    onPress: () => changePatientStatus(patient.recordID, next)
+                  }
+                ]
+              );
+            }}
+            activeOpacity={0.8}
+          >
+            <ArrowRightLeft size={14} color={patient.status === 'Admitted' ? '#10B981' : '#EF4444'} />
+            <Text style={[styles.statusChangeText, { color: patient.status === 'Admitted' ? '#10B981' : '#EF4444' }]}>
+              {(patient.status || 'Admitted') === 'Admitted' ? 'Discharge Patient' : 'Mark Deceased'}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
       )}
 
       {/* Metadata Bar */}
@@ -372,178 +423,177 @@ const PatientDetail = ({ route, navigation }) => {
       <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* Profile Card */}
-        <View style={styles.profileCard}>
-          <View style={styles.profileRow}>
-            <View style={styles.avatarBox}>
-              <Text style={styles.avatarText}>{patient.fullName.charAt(0)}</Text>
-            </View>
-            <View style={styles.patientMeta}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
-                <Text style={styles.patientName}>{patient.fullName}</Text>
-                <View style={[styles.detailStatusBadge, { backgroundColor: patient.status === 'Discharged' ? '#D1FAE5' : patient.status === 'Deceased' ? '#FEE2E2' : '#EFF6FF', marginLeft: 8 }]}>
-                  <Text style={[styles.detailStatusText, { color: patient.status === 'Discharged' ? '#10B981' : patient.status === 'Deceased' ? '#EF4444' : '#3B82F6' }]}>
-                    {patient.status || 'Admitted'}
-                  </Text>
-                </View>
+        <AnimatedMount slide delay={50}>
+          <View style={styles.profileCard}>
+            <View style={styles.profileRow}>
+              <View style={styles.avatarBox}>
+                <Text style={styles.avatarText}>{patient.fullName.charAt(0)}</Text>
               </View>
-              <Text style={styles.patientLoc}>{patient.status === 'Deceased' ? 'Critical Care Record' : patient.status === 'Discharged' ? 'Discharged Outpatient' : patient.wardName}</Text>
-              <Text style={styles.patientBed}>{patient.status === 'Admitted' ? `${patient.roomType} / Bed ${patient.bedNo}` : `Record ID: ${patient.recordID}`}</Text>
+              <View style={styles.patientMeta}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Text style={styles.patientName}>{patient.fullName}</Text>
+                  <View style={[styles.detailStatusBadge, { backgroundColor: patient.status === 'Discharged' ? '#D1FAE5' : patient.status === 'Deceased' ? '#FEE2E2' : '#EFF6FF', marginLeft: 8 }]}>
+                    <Text style={[styles.detailStatusText, { color: patient.status === 'Discharged' ? '#10B981' : patient.status === 'Deceased' ? '#EF4444' : '#3B82F6' }]}>
+                      {patient.status || 'Admitted'}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.patientLoc}>{patient.status === 'Deceased' ? 'Critical Care Record' : patient.status === 'Discharged' ? 'Discharged Outpatient' : patient.wardName}</Text>
+                <Text style={styles.patientBed}>{patient.status === 'Admitted' ? `${patient.roomType} / Bed ${patient.bedNo}` : `Record ID: ${patient.recordID}`}</Text>
+              </View>
             </View>
+            <View style={styles.divider} />
+            <View style={styles.inchargeRow}>
+              <Text style={styles.inchargeLabel}>Consultant Incharge:</Text>
+              <Text style={styles.inchargeVal}>{patient.inchargeDoctor || 'Dr. Niraj Bam'}</Text>
+            </View>
+            <View style={styles.divider} />
+            <TouchableOpacity 
+              style={styles.discussButton}
+              onPress={handleDiscussCase}
+              disabled={discussing}
+            >
+              {discussing ? (
+                <ActivityIndicator size="small" color={theme.colors.primary} />
+              ) : (
+                <>
+                  <MessageSquare size={14} color={theme.colors.primary} style={{ marginRight: 6 }} />
+                  <Text style={styles.discussButtonText}>Discuss Case</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
-          <View style={styles.divider} />
-          <View style={styles.inchargeRow}>
-            <Text style={styles.inchargeLabel}>Consultant Incharge:</Text>
-            <Text style={styles.inchargeVal}>{patient.inchargeDoctor || 'Dr. Niraj Bam'}</Text>
-          </View>
-          <View style={styles.divider} />
-          <TouchableOpacity 
-            style={styles.discussButton}
-            onPress={handleDiscussCase}
-            disabled={discussing}
-          >
-            {discussing ? (
-              <ActivityIndicator size="small" color={theme.colors.primary} />
-            ) : (
-              <>
-                <MessageSquare size={14} color={theme.colors.primary} style={{ marginRight: 6 }} />
-                <Text style={styles.discussButtonText}>Discuss Case</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+        </AnimatedMount>
 
         {/* Circular Quick Stats Bar */}
-        <View style={styles.quickStatsRow}>
-          {renderQuickStat('Age', `${patient.age} Y`)}
-          {renderQuickStat('Height', patient.height || '5.5 ft')}
-          {renderQuickStat('Weight', `${patient.weight || '65'} kg`)}
-          {renderQuickStat('Gender', patient.gender)}
-        </View>
+        <AnimatedMount slide delay={100}>
+          <View style={styles.quickStatsRow}>
+            {renderQuickStat('Age', `${patient.age} Y`)}
+            {renderQuickStat('Height', patient.height || '5.5 ft')}
+            {renderQuickStat('Weight', `${patient.weight || '65'} kg`)}
+            {renderQuickStat('Gender', patient.gender)}
+          </View>
+        </AnimatedMount>
 
         {/* Primary Diagnosis Banner */}
-        <View style={styles.diagnosisBanner}>
-          <View style={styles.diagnosisBannerIcon}>
-            <Stethoscope size={20} color="#047857" />
+        <AnimatedMount slide delay={150}>
+          <View style={styles.diagnosisBanner}>
+            <View style={styles.diagnosisBannerIcon}>
+              <Stethoscope size={20} color="#047857" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.diagnosisBannerLabel}>Primary Diagnosis</Text>
+              <Text style={styles.diagnosisBannerText}>{patient.diagnosis || 'No Diagnosis Recorded'}</Text>
+            </View>
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.diagnosisBannerLabel}>Primary Diagnosis</Text>
-            <Text style={styles.diagnosisBannerText}>{patient.diagnosis || 'No Diagnosis Recorded'}</Text>
-          </View>
-        </View>
+        </AnimatedMount>
 
         {/* Grid Menu */}
-        <View style={styles.gridContainer}>
-          <TouchableOpacity 
-            style={styles.gridCell}
-            onPress={() => navigation.navigate('VitalsScreen', { patientId: patient.recordID })}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconBox, { backgroundColor: '#EFF6FF' }]}>
-              <Activity size={24} color="#3B82F6" />
-            </View>
-            <Text style={styles.gridCellTitle}>Vitals</Text>
-            <Text style={styles.gridCellDesc}>Updates & TPR Trend</Text>
-          </TouchableOpacity>
+        <AnimatedMount slide delay={200}>
+          <View style={styles.gridContainer}>
+            <AnimatedPressable 
+              style={styles.gridCell}
+              onPress={() => navigation.navigate('VitalsScreen', { patientId: patient.recordID })}
+            >
+              <View style={[styles.gridIconBox, { backgroundColor: '#EFF6FF' }]}>
+                <Activity size={24} color="#3B82F6" />
+              </View>
+              <Text style={styles.gridCellTitle}>Vitals</Text>
+              <Text style={styles.gridCellDesc}>Updates & TPR Trend</Text>
+            </AnimatedPressable>
 
-          <TouchableOpacity 
-            style={styles.gridCell}
-            onPress={() => setActiveModal('diagnosis')}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconBox, { backgroundColor: '#F0FDF4' }]}>
-              <Stethoscope size={24} color="#22C55E" />
-            </View>
-            <Text style={styles.gridCellTitle}>Diagnosis</Text>
-            <Text style={styles.gridCellDesc}>Medical Assessments</Text>
-          </TouchableOpacity>
+            <AnimatedPressable 
+              style={styles.gridCell}
+              onPress={() => setActiveModal('diagnosis')}
+            >
+              <View style={[styles.gridIconBox, { backgroundColor: '#F0FDF4' }]}>
+                <Stethoscope size={24} color="#22C55E" />
+              </View>
+              <Text style={styles.gridCellTitle}>Diagnosis</Text>
+              <Text style={styles.gridCellDesc}>Medical Assessments</Text>
+            </AnimatedPressable>
 
-          <TouchableOpacity 
-            style={styles.gridCell}
-            onPress={() => setActiveModal('medication')}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconBox, { backgroundColor: '#FEF2F2' }]}>
-              <Pill size={24} color="#EF4444" />
-            </View>
-            <Text style={styles.gridCellTitle}>Medication</Text>
-            <Text style={styles.gridCellDesc}>Prescription Logs</Text>
-          </TouchableOpacity>
+            <AnimatedPressable 
+              style={styles.gridCell}
+              onPress={() => setActiveModal('medication')}
+            >
+              <View style={[styles.gridIconBox, { backgroundColor: '#FEF2F2' }]}>
+                <Pill size={24} color="#EF4444" />
+              </View>
+              <Text style={styles.gridCellTitle}>Medication</Text>
+              <Text style={styles.gridCellDesc}>Prescription Logs</Text>
+            </AnimatedPressable>
 
-          <TouchableOpacity 
-            style={styles.gridCell}
-            onPress={() => setActiveModal('soap')}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconBox, { backgroundColor: '#FFF7ED' }]}>
-              <BookOpen size={24} color="#F97316" />
-            </View>
-            <Text style={styles.gridCellTitle}>SOAP Note</Text>
-            <Text style={styles.gridCellDesc}>Structured clinical note</Text>
-          </TouchableOpacity>
+            <AnimatedPressable 
+              style={styles.gridCell}
+              onPress={() => setActiveModal('soap')}
+            >
+              <View style={[styles.gridIconBox, { backgroundColor: '#FFF7ED' }]}>
+                <BookOpen size={24} color="#F97316" />
+              </View>
+              <Text style={styles.gridCellTitle}>SOAP Note</Text>
+              <Text style={styles.gridCellDesc}>Structured clinical note</Text>
+            </AnimatedPressable>
 
-          <TouchableOpacity 
-            style={styles.gridCell}
-            onPress={() => navigation.navigate('DischargeSummary', { patientId: patient.recordID })}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconBox, { backgroundColor: '#FAF5FF' }]}>
-              <FileCheck size={24} color="#A855F7" />
-            </View>
-            <Text style={styles.gridCellTitle}>Discharge</Text>
-            <Text style={styles.gridCellDesc}>Summary & follow-up</Text>
-          </TouchableOpacity>
+            <AnimatedPressable 
+              style={styles.gridCell}
+              onPress={() => navigation.navigate('DischargeSummary', { patientId: patient.recordID })}
+            >
+              <View style={[styles.gridIconBox, { backgroundColor: '#FAF5FF' }]}>
+                <FileCheck size={24} color="#A855F7" />
+              </View>
+              <Text style={styles.gridCellTitle}>Discharge</Text>
+              <Text style={styles.gridCellDesc}>Summary & follow-up</Text>
+            </AnimatedPressable>
 
-          <TouchableOpacity 
-            style={styles.gridCell}
-            onPress={() => { setSelectedNoteTab('Clinical'); scrollRef.current?.scrollTo({ y: 480, animated: true }); }}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconBox, { backgroundColor: '#ECFEFF' }]}>
-              <ClipboardList size={24} color="#06B6D4" />
-            </View>
-            <Text style={styles.gridCellTitle}>Progress Log</Text>
-            <Text style={styles.gridCellDesc}>Daily ward reports</Text>
-          </TouchableOpacity>
+            <AnimatedPressable 
+              style={styles.gridCell}
+              onPress={() => { setSelectedNoteTab('Clinical'); scrollRef.current?.scrollTo({ y: 550, animated: true }); triggerNoteHighlight(); }}
+            >
+              <View style={[styles.gridIconBox, { backgroundColor: '#ECFEFF' }]}>
+                <ClipboardList size={24} color="#06B6D4" />
+              </View>
+              <Text style={styles.gridCellTitle}>Progress Log</Text>
+              <Text style={styles.gridCellDesc}>Daily ward reports</Text>
+            </AnimatedPressable>
 
-          <TouchableOpacity 
-            style={styles.gridCell}
-            onPress={() => {
-              setActiveModal('mar');
-              setSelectedMedForMar(null);
-            }}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconBox, { backgroundColor: '#E6F4F1' }]}>
-              <ClipboardCheck size={24} color="#0E7490" />
-            </View>
-            <Text style={styles.gridCellTitle}>MAR Log</Text>
-            <Text style={styles.gridCellDesc}>Medication dosing logs</Text>
-          </TouchableOpacity>
+            <AnimatedPressable 
+              style={styles.gridCell}
+              onPress={() => {
+                setActiveModal('mar');
+                setSelectedMedForMar(null);
+              }}
+            >
+              <View style={[styles.gridIconBox, { backgroundColor: '#E6F4F1' }]}>
+                <ClipboardCheck size={24} color="#0E7490" />
+              </View>
+              <Text style={styles.gridCellTitle}>MAR Log</Text>
+              <Text style={styles.gridCellDesc}>Medication dosing logs</Text>
+            </AnimatedPressable>
 
-          <TouchableOpacity 
-            style={styles.gridCell}
-            onPress={handleOpenHandover}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconBox, { backgroundColor: '#F0FDF4' }]}>
-              <ArrowRightLeft size={24} color="#15803D" />
-            </View>
-            <Text style={styles.gridCellTitle}>Handover</Text>
-            <Text style={styles.gridCellDesc}>Shift handover sheets</Text>
-          </TouchableOpacity>
+            <AnimatedPressable 
+              style={styles.gridCell}
+              onPress={handleOpenHandover}
+            >
+              <View style={[styles.gridIconBox, { backgroundColor: '#F0FDF4' }]}>
+                <ArrowRightLeft size={24} color="#15803D" />
+              </View>
+              <Text style={styles.gridCellTitle}>Handover</Text>
+              <Text style={styles.gridCellDesc}>Shift handover sheets</Text>
+            </AnimatedPressable>
 
-          <TouchableOpacity 
-            style={styles.gridCell}
-            onPress={handleOpenCarePlan}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconBox, { backgroundColor: '#EFF6FF' }]}>
-              <ClipboardList size={24} color="#1D4ED8" />
-            </View>
-            <Text style={styles.gridCellTitle}>Care Plan</Text>
-            <Text style={styles.gridCellDesc}>Nursing care plans</Text>
-          </TouchableOpacity>
-        </View>
+            <AnimatedPressable 
+              style={styles.gridCell}
+              onPress={handleOpenCarePlan}
+            >
+              <View style={[styles.gridIconBox, { backgroundColor: '#EFF6FF' }]}>
+                <ClipboardList size={24} color="#1D4ED8" />
+              </View>
+              <Text style={styles.gridCellTitle}>Care Plan</Text>
+              <Text style={styles.gridCellDesc}>Nursing care plans</Text>
+            </AnimatedPressable>
+          </View>
+        </AnimatedMount>
 
         {/* Investigation Reports Full-Width Button */}
         <TouchableOpacity 
@@ -564,8 +614,9 @@ const PatientDetail = ({ route, navigation }) => {
         </TouchableOpacity>
 
         {/* Progress & Clinical Notes Hub */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Progress & Ward Logs</Text>
+        <Animated.View style={noteHighlightStyle}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Progress & Ward Logs</Text>
           
           {/* Tabs */}
           <View style={styles.notesTabContainer}>
@@ -627,7 +678,7 @@ const PatientDetail = ({ route, navigation }) => {
                   const cleanedText = report.note.replace(`${selectedNoteTab} Note: `, '').replace(`${selectedNoteTab} Note:`, '');
                   const accentColor = selectedNoteTab === 'Clinical' ? '#F97316' : selectedNoteTab === 'Consultant' ? '#A855F7' : '#06B6D4';
                   return (
-                    <View key={idx} style={styles.timelineNode}>
+                    <Animated.View key={idx} entering={FadeInLeft.delay(Math.min(idx * 50, 300)).duration(350)} style={styles.timelineNode}>
                       <View style={[styles.timelineLine, { backgroundColor: accentColor }]} />
                       <View style={[styles.timelineDot, { borderColor: accentColor }]} />
                       
@@ -647,7 +698,7 @@ const PatientDetail = ({ route, navigation }) => {
                         </View>
                         <Text style={styles.timelineText}>{cleanedText}</Text>
                       </View>
-                    </View>
+                    </Animated.View>
                   );
                 })
             ) : (
@@ -657,6 +708,7 @@ const PatientDetail = ({ route, navigation }) => {
             )}
           </View>
         </View>
+      </Animated.View>
 
         {/* Additional Doctors Section */}
         <View style={styles.section}>
@@ -683,790 +735,719 @@ const PatientDetail = ({ route, navigation }) => {
       {/* OVERLAY MODALS */}
 
       {/* Diagnosis Modal */}
-      <Modal visible={activeModal === 'diagnosis'} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Diagnosis Detail</Text>
-              <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView>
-              <View style={styles.detailCard}>
-                <Text style={styles.detailLabel}>Primary Diagnosis</Text>
-                <Text style={styles.detailText}>{patient.diagnosis}</Text>
-              </View>
-
-              <View style={styles.detailCard}>
-                <Text style={styles.detailLabel}>Nature of Illness</Text>
-                <Text style={styles.detailText}>{patient.natureOfDisease || 'Acute'}</Text>
-              </View>
-
-              <View style={styles.detailCard}>
-                <Text style={styles.detailLabel}>Duration of Illness</Text>
-                <Text style={styles.detailText}>{patient.durationOfIllness || 'N/A'}</Text>
-              </View>
-
-              <View style={styles.detailCard}>
-                <Text style={styles.detailLabel}>History of Present Illness</Text>
-                <Text style={styles.detailText}>{patient.historyOfPresentIllness || 'None recorded.'}</Text>
-              </View>
-            </ScrollView>
+      <BottomSheet
+        visible={activeModal === 'diagnosis'}
+        onClose={() => setActiveModal(null)}
+        title="Diagnosis Detail"
+        height="70%"
+      >
+        <ScrollView>
+          <View style={styles.detailCard}>
+            <Text style={styles.detailLabel}>Primary Diagnosis</Text>
+            <Text style={styles.detailText}>{patient.diagnosis}</Text>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
+
+          <View style={styles.detailCard}>
+            <Text style={styles.detailLabel}>Nature of Illness</Text>
+            <Text style={styles.detailText}>{patient.natureOfDisease || 'Acute'}</Text>
+          </View>
+
+          <View style={styles.detailCard}>
+            <Text style={styles.detailLabel}>Duration of Illness</Text>
+            <Text style={styles.detailText}>{patient.durationOfIllness || 'N/A'}</Text>
+          </View>
+
+          <View style={styles.detailCard}>
+            <Text style={styles.detailLabel}>History of Present Illness</Text>
+            <Text style={styles.detailText}>{patient.historyOfPresentIllness || 'None recorded.'}</Text>
+          </View>
+        </ScrollView>
+      </BottomSheet>
 
       {/* Medication Modal — Enhanced */}
-      <Modal visible={activeModal === 'medication'} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={styles.modalTitle}>Medications & Orders</Text>
-                {(() => {
-                  const meds = patient.medications || [];
-                  const activeCount = meds.filter(m => m.status === 'active').length;
-                  return (
-                    <View style={{ backgroundColor: '#D1FAE5', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: '#047857' }}>{activeCount}/{meds.length}</Text>
-                    </View>
-                  );
-                })()}
+      <BottomSheet
+        visible={activeModal === 'medication'}
+        onClose={() => { setActiveModal(null); setShowAddMed(false); }}
+        title="Medications & Orders"
+        height="85%"
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6 }}>
+          {(() => {
+            const meds = patient.medications || [];
+            const activeCount = meds.filter(m => m.status === 'active').length;
+            return (
+              <View style={{ backgroundColor: '#D1FAE5', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: '#047857' }}>Active: {activeCount} of {meds.length}</Text>
               </View>
-              <TouchableOpacity onPress={() => { setActiveModal(null); setShowAddMed(false); }}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
+            );
+          })()}
 
-            {/* Add Medication Toggle */}
-            <TouchableOpacity 
-              style={{ flexDirection: 'row', alignItems: 'center', padding: 12, gap: 6 }}
-              onPress={() => setShowAddMed(!showAddMed)}
+          {/* Add Medication Toggle */}
+          <TouchableOpacity 
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+            onPress={() => setShowAddMed(!showAddMed)}
+          >
+            <Plus size={16} color={theme.colors.primary} />
+            <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 13 }}>
+              {showAddMed ? 'Cancel' : 'Add Medication'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Add Medication Form */}
+        {showAddMed && (
+          <View style={{ paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#F8FAFC', marginHorizontal: 12, borderRadius: 12, marginBottom: 8 }}>
+            <Text style={{ fontWeight: '700', fontSize: 12, color: '#374151', marginTop: 12, marginBottom: 6 }}>Drug Name *</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="e.g. Amoxicillin 500mg"
+              value={newMed.name}
+              onChangeText={t => setNewMed(prev => ({ ...prev, name: t }))}
+            />
+            <Text style={{ fontWeight: '700', fontSize: 12, color: '#374151', marginTop: 8, marginBottom: 6 }}>Route</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+              {ROUTE_OPTIONS.map((r, idx) => (
+                <TouchableOpacity
+                  key={r}
+                  onPress={() => setSelectedRouteIdx(idx)}
+                  style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginRight: 6, backgroundColor: selectedRouteIdx === idx ? theme.colors.primary : '#E5E7EB' }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: selectedRouteIdx === idx ? '#FFF' : '#4B5563' }}>{r}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <Text style={{ fontWeight: '700', fontSize: 12, color: '#374151', marginTop: 4, marginBottom: 6 }}>Frequency *</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="e.g. BD, TDS, OD"
+              value={newMed.frequency}
+              onChangeText={t => setNewMed(prev => ({ ...prev, frequency: t }))}
+            />
+            <Text style={{ fontWeight: '700', fontSize: 12, color: '#374151', marginTop: 8, marginBottom: 6 }}>Indication</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="e.g. Infection, Pain"
+              value={newMed.indication}
+              onChangeText={t => setNewMed(prev => ({ ...prev, indication: t }))}
+            />
+            <TouchableOpacity
+              style={[styles.modalSubmitBtn, { marginTop: 12 }]}
+              onPress={handleAddMedication}
+              disabled={medLoading}
             >
+              {medLoading ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Text style={styles.modalSubmitBtnText}>Save Medication</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <ScrollView>
+          {(patient.medications && patient.medications.length > 0) ? (
+            patient.medications.map((med, idx) => (
+              <TouchableOpacity
+                key={med.id || idx}
+                style={[styles.medicationItem, { borderLeftWidth: 3, borderLeftColor: med.status === 'active' ? '#10B981' : '#D1D5DB' }]}
+                onLongPress={() => handleDeleteMedication(med)}
+                activeOpacity={0.8}
+              >
+                <Pill size={16} color={med.status === 'active' ? theme.colors.primary : theme.colors.textSecondary} style={{ marginRight: 8 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.medName, med.status !== 'active' && { color: theme.colors.textSecondary, textDecorationLine: 'line-through' }]}>{med.name}</Text>
+                  <Text style={styles.medDose}>{med.route} • {med.frequency}{med.indication ? ` • ${med.indication}` : ''}</Text>
+                </View>
+                <TouchableOpacity
+                  style={[styles.medStatusBadge, { backgroundColor: med.status === 'active' ? '#FEF2F2' : '#F0FDF4' }]}
+                  onPress={() => handleToggleMedStatus(med)}
+                >
+                  <Text style={[styles.medStatusText, { color: med.status === 'active' ? '#EF4444' : '#10B981' }]}>
+                    {med.status === 'active' ? 'Stop' : 'Restart'}
+                  </Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyLogsCard}>
+              <Text style={styles.emptyLogsText}>No medications prescribed yet.</Text>
+            </View>
+          )}
+        </ScrollView>
+      </BottomSheet>
+
+      {/* Labs / Investigation Reports Modal */}
+      <BottomSheet
+        visible={activeModal === 'labs'}
+        onClose={() => { setActiveModal(null); setShowAddLab(false); }}
+        title="Investigation Reports"
+        height="85%"
+      >
+        <ScrollView showsVerticalScrollIndicator={false}>
+          
+          <Text style={styles.subSectionTitle}>Imaging Studies</Text>
+          <View style={styles.detailCard}>
+            <Text style={styles.detailLabel}>USG Findings</Text>
+            <Text style={styles.detailText}>{patient.usg || 'Normal'}</Text>
+          </View>
+
+          <View style={styles.detailCard}>
+            <Text style={styles.detailLabel}>CT Scan Findings</Text>
+            <Text style={styles.detailText}>{patient.ctScan || 'Normal'}</Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm }}>
+            <Text style={[styles.subSectionTitle, { marginTop: 0, marginBottom: 0 }]}>Laboratory Records</Text>
+            <TouchableOpacity onPress={() => setShowAddLab(!showAddLab)} style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Plus size={16} color={theme.colors.primary} />
-              <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 13 }}>
-                {showAddMed ? 'Cancel' : 'Add Medication'}
+              <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 12, marginLeft: 4 }}>Add Report</Text>
+            </TouchableOpacity>
+          </View>
+
+          {showAddLab && (
+            <View style={[styles.labCard, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: theme.colors.primaryLight }]}>
+              <Text style={styles.labDate}>Add New Report ({newLab.date})</Text>
+              <View style={styles.labGrid}>
+                <View style={styles.labCell}>
+                  <Text style={styles.labCellLabel}>Hb (Hemoglobin)</Text>
+                  <TextInput style={styles.modalInput} placeholder="e.g. 14.2" value={newLab.hb} onChangeText={(t) => setNewLab({ ...newLab, hb: t })} />
+                </View>
+                <View style={styles.labCell}>
+                  <Text style={styles.labCellLabel}>TC (Total Count)</Text>
+                  <TextInput style={styles.modalInput} placeholder="e.g. 8500" value={newLab.tc} onChangeText={(t) => setNewLab({ ...newLab, tc: t })} />
+                </View>
+                <View style={styles.labCell}>
+                  <Text style={styles.labCellLabel}>Platelets</Text>
+                  <TextInput style={styles.modalInput} placeholder="e.g. 240000" value={newLab.platelets} onChangeText={(t) => setNewLab({ ...newLab, platelets: t })} />
+                </View>
+                <View style={styles.labCell}>
+                  <Text style={styles.labCellLabel}>INR</Text>
+                  <TextInput style={styles.modalInput} placeholder="e.g. 1.0" value={newLab.inr} onChangeText={(t) => setNewLab({ ...newLab, inr: t })} />
+                </View>
+              </View>
+              <View style={styles.modalButtonGroup}>
+                <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowAddLab(false)}>
+                  <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.modalSubmitBtn} onPress={handleAddLab}>
+                  <Text style={styles.modalSubmitBtnText}>Save Lab Report</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {patient.investigations?.map((inv, idx) => (
+            <View key={idx} style={styles.labCard}>
+              <Text style={styles.labDate}>Report Date: {inv.date}</Text>
+              <View style={styles.labGrid}>
+                <View style={styles.labCell}><Text style={styles.labCellLabel}>Hb (Hemoglobin)</Text><Text style={styles.labCellVal}>{inv.hb} g/dL</Text></View>
+                <View style={styles.labCell}><Text style={styles.labCellLabel}>TC (Total Count)</Text><Text style={styles.labCellVal}>{inv.tc} /cumm</Text></View>
+                <View style={styles.labCell}><Text style={styles.labCellLabel}>Platelets</Text><Text style={styles.labCellVal}>{inv.platelets} /cumm</Text></View>
+                <View style={styles.labCell}><Text style={styles.labCellLabel}>INR</Text><Text style={styles.labCellVal}>{inv.inr}</Text></View>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      </BottomSheet>
+
+      {/* SOAP Note Modal */}
+      <BottomSheet
+        visible={activeModal === 'soap'}
+        onClose={() => setActiveModal(null)}
+        title="SOAP Note"
+        height="85%"
+      >
+        <ScrollView style={{ paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
+          {['Subjective', 'Objective', 'Assessment', 'Plan'].map((section) => (
+            <View key={section} style={{ marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: section === 'Subjective' ? '#DBEAFE' : section === 'Objective' ? '#D1FAE5' : section === 'Assessment' ? '#FEF3C7' : '#FCE7F3', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: section === 'Subjective' ? '#3B82F6' : section === 'Objective' ? '#10B981' : section === 'Assessment' ? '#F59E0B' : '#EC4899' }}>
+                    {section.charAt(0)}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#374151' }}>{section}</Text>
+              </View>
+              <TextInput
+                style={[styles.modalInput, { minHeight: 70, textAlignVertical: 'top' }]}
+                placeholder={`Enter ${section.toLowerCase()} findings...`}
+                placeholderTextColor="#9CA3AF"
+                value={soapNote[section.toLowerCase()]}
+                onChangeText={t => setSoapNote(prev => ({ ...prev, [section.toLowerCase()]: t }))}
+                multiline
+              />
+            </View>
+          ))}
+          <View style={styles.modalButtonGroup}>
+            <TouchableOpacity
+              style={[styles.modalSubmitBtn, { flex: 1 }]}
+              onPress={() => handleSaveSoapNote(false)}
+              disabled={soapLoading}
+            >
+              {soapLoading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.modalSubmitBtnText}>Save & Log</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalSubmitBtn, { flex: 1, backgroundColor: '#047857' }]}
+              onPress={() => handleSaveSoapNote(true)}
+              disabled={soapLoading}
+            >
+              <Text style={styles.modalSubmitBtnText}>Save & Share</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={{ height: 20 }} />
+        </ScrollView>
+      </BottomSheet>
+
+      {/* MAR Log Modal */}
+      <BottomSheet
+        visible={activeModal === 'mar'}
+        onClose={() => { setActiveModal(null); setSelectedMedForMar(null); }}
+        title="Medication Administration"
+        height="85%"
+      >
+        {selectedMedForMar ? (
+          <View style={{ flex: 1 }}>
+            <TouchableOpacity 
+              style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }} 
+              onPress={() => setSelectedMedForMar(null)}
+            >
+              <ChevronLeft size={16} color={theme.colors.primary} />
+              <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 13, marginLeft: 4 }}>
+                Back to Med List
               </Text>
             </TouchableOpacity>
 
-            {/* Add Medication Form */}
-            {showAddMed && (
-              <View style={{ paddingHorizontal: 16, paddingBottom: 12, backgroundColor: '#F8FAFC', marginHorizontal: 12, borderRadius: 12, marginBottom: 8 }}>
-                <Text style={{ fontWeight: '700', fontSize: 12, color: '#374151', marginTop: 12, marginBottom: 6 }}>Drug Name *</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="e.g. Amoxicillin 500mg"
-                  value={newMed.name}
-                  onChangeText={t => setNewMed(prev => ({ ...prev, name: t }))}
-                />
-                <Text style={{ fontWeight: '700', fontSize: 12, color: '#374151', marginTop: 8, marginBottom: 6 }}>Route</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-                  {ROUTE_OPTIONS.map((r, idx) => (
+            <View style={[styles.detailCard, { borderLeftWidth: 4, borderLeftColor: '#0E7490' }]}>
+              <Text style={{ fontWeight: '800', fontSize: 14, color: theme.colors.textPrimary }}>
+                {selectedMedForMar.name}
+              </Text>
+              <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
+                Route: {selectedMedForMar.route} • Frequency: {selectedMedForMar.frequency}
+              </Text>
+              {selectedMedForMar.indication ? (
+                <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 }}>
+                  Indication: {selectedMedForMar.indication}
+                </Text>
+              ) : null}
+            </View>
+
+            {isNurse && (
+              <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 12 }}>
+                <Text style={{ fontWeight: '700', fontSize: 12, color: '#374151', marginBottom: 6 }}>
+                  Record Administration
+                </Text>
+                
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+                  {['Given', 'Held', 'Refused'].map((st) => (
                     <TouchableOpacity
-                      key={r}
-                      onPress={() => setSelectedRouteIdx(idx)}
-                      style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, marginRight: 6, backgroundColor: selectedRouteIdx === idx ? theme.colors.primary : '#E5E7EB' }}
+                      key={st}
+                      onPress={() => setMarStatus(st)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                        alignItems: 'center',
+                        backgroundColor: marStatus === st 
+                          ? (st === 'Given' ? '#D1FAE5' : st === 'Held' ? '#FEF3C7' : '#FEE2E2') 
+                          : '#E2E8F0',
+                        borderWidth: 1,
+                        borderColor: marStatus === st 
+                          ? (st === 'Given' ? '#10B981' : st === 'Held' ? '#F59E0B' : '#EF4444') 
+                          : 'transparent'
+                      }}
                     >
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: selectedRouteIdx === idx ? '#FFF' : '#4B5563' }}>{r}</Text>
+                      <Text style={{
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: marStatus === st 
+                          ? (st === 'Given' ? '#065F46' : st === 'Held' ? '#92400E' : '#991B1B') 
+                          : '#4B5563'
+                      }}>
+                        {st}
+                      </Text>
                     </TouchableOpacity>
                   ))}
-                </ScrollView>
-                <Text style={{ fontWeight: '700', fontSize: 12, color: '#374151', marginTop: 4, marginBottom: 6 }}>Frequency *</Text>
+                </View>
+
                 <TextInput
-                  style={styles.modalInput}
-                  placeholder="e.g. BD, TDS, OD"
-                  value={newMed.frequency}
-                  onChangeText={t => setNewMed(prev => ({ ...prev, frequency: t }))}
+                  style={[styles.modalInput, { minHeight: 40, backgroundColor: '#FFF', paddingHorizontal: 8, borderRadius: 8 }]}
+                  placeholder="Add administration notes (optional)..."
+                  value={marNotes}
+                  onChangeText={setMarNotes}
                 />
-                <Text style={{ fontWeight: '700', fontSize: 12, color: '#374151', marginTop: 8, marginBottom: 6 }}>Indication</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  placeholder="e.g. Infection, Pain"
-                  value={newMed.indication}
-                  onChangeText={t => setNewMed(prev => ({ ...prev, indication: t }))}
-                />
+
                 <TouchableOpacity
-                  style={[styles.modalSubmitBtn, { marginTop: 12 }]}
-                  onPress={handleAddMedication}
-                  disabled={medLoading}
+                  style={[styles.modalSubmitBtn, { marginTop: 8, paddingVertical: 10 }]}
+                  onPress={handleSaveMar}
+                  disabled={marLoading}
                 >
-                  {medLoading ? (
+                  {marLoading ? (
                     <ActivityIndicator size="small" color="#FFF" />
                   ) : (
-                    <Text style={styles.modalSubmitBtnText}>Save Medication</Text>
+                    <Text style={styles.modalSubmitBtnText}>Log Dose</Text>
                   )}
                 </TouchableOpacity>
               </View>
             )}
 
+            <Text style={styles.subSectionTitle}>Dose Administration History</Text>
             <ScrollView>
-              {(patient.medications && patient.medications.length > 0) ? (
-                patient.medications.map((med, idx) => (
-                  <TouchableOpacity
-                    key={med.id || idx}
-                    style={[styles.medicationItem, { borderLeftWidth: 3, borderLeftColor: med.status === 'active' ? '#10B981' : '#D1D5DB' }]}
-                    onLongPress={() => handleDeleteMedication(med)}
-                    activeOpacity={0.8}
-                  >
-                    <Pill size={16} color={med.status === 'active' ? theme.colors.primary : theme.colors.textSecondary} style={{ marginRight: 8 }} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.medName, med.status !== 'active' && { color: theme.colors.textSecondary, textDecorationLine: 'line-through' }]}>{med.name}</Text>
-                      <Text style={styles.medDose}>{med.route} • {med.frequency}{med.indication ? ` • ${med.indication}` : ''}</Text>
+              {(() => {
+                const liveMed = (patient.medications || []).find(m => m.id === selectedMedForMar.id);
+                const admins = liveMed?.administrations || [];
+                if (admins.length === 0) {
+                  return (
+                    <View style={styles.emptyLogsCard}>
+                      <Text style={styles.emptyLogsText}>No administrations logged for this medication.</Text>
                     </View>
-                    <TouchableOpacity
-                      style={[styles.medStatusBadge, { backgroundColor: med.status === 'active' ? '#FEF2F2' : '#F0FDF4' }]}
-                      onPress={() => handleToggleMedStatus(med)}
-                    >
-                      <Text style={[styles.medStatusText, { color: med.status === 'active' ? '#EF4444' : '#10B981' }]}>
-                        {med.status === 'active' ? 'Stop' : 'Restart'}
-                      </Text>
-                    </TouchableOpacity>
-                  </TouchableOpacity>
-                ))
-              ) : (
-                <View style={styles.emptyLogsCard}>
-                  <Text style={styles.emptyLogsText}>No medications prescribed yet.</Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Labs / Investigation Reports Modal */}
-      <Modal visible={activeModal === 'labs'} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Investigation Reports</Text>
-              <TouchableOpacity onPress={() => { setActiveModal(null); setShowAddLab(false); }}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              
-              <Text style={styles.subSectionTitle}>Imaging Studies</Text>
-              <View style={styles.detailCard}>
-                <Text style={styles.detailLabel}>USG Findings</Text>
-                <Text style={styles.detailText}>{patient.usg || 'Normal'}</Text>
-              </View>
-
-              <View style={styles.detailCard}>
-                <Text style={styles.detailLabel}>CT Scan Findings</Text>
-                <Text style={styles.detailText}>{patient.ctScan || 'Normal'}</Text>
-              </View>
-
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: theme.spacing.lg, marginBottom: theme.spacing.sm }}>
-                <Text style={[styles.subSectionTitle, { marginTop: 0, marginBottom: 0 }]}>Laboratory Records</Text>
-                <TouchableOpacity onPress={() => setShowAddLab(!showAddLab)} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Plus size={16} color={theme.colors.primary} />
-                  <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 12, marginLeft: 4 }}>Add Report</Text>
-                </TouchableOpacity>
-              </View>
-
-              {showAddLab && (
-                <View style={[styles.labCard, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: theme.colors.primaryLight }]}>
-                  <Text style={styles.labDate}>Add New Report ({newLab.date})</Text>
-                  <View style={styles.labGrid}>
-                    <View style={styles.labCell}>
-                      <Text style={styles.labCellLabel}>Hb (Hemoglobin)</Text>
-                      <TextInput style={styles.modalInput} placeholder="e.g. 14.2" value={newLab.hb} onChangeText={(t) => setNewLab({ ...newLab, hb: t })} />
-                    </View>
-                    <View style={styles.labCell}>
-                      <Text style={styles.labCellLabel}>TC (Total Count)</Text>
-                      <TextInput style={styles.modalInput} placeholder="e.g. 8500" value={newLab.tc} onChangeText={(t) => setNewLab({ ...newLab, tc: t })} />
-                    </View>
-                    <View style={styles.labCell}>
-                      <Text style={styles.labCellLabel}>Platelets</Text>
-                      <TextInput style={styles.modalInput} placeholder="e.g. 240000" value={newLab.platelets} onChangeText={(t) => setNewLab({ ...newLab, platelets: t })} />
-                    </View>
-                    <View style={styles.labCell}>
-                      <Text style={styles.labCellLabel}>INR</Text>
-                      <TextInput style={styles.modalInput} placeholder="e.g. 1.0" value={newLab.inr} onChangeText={(t) => setNewLab({ ...newLab, inr: t })} />
-                    </View>
-                  </View>
-                  <View style={styles.modalButtonGroup}>
-                    <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowAddLab(false)}>
-                      <Text style={styles.modalCancelBtnText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.modalSubmitBtn} onPress={handleAddLab}>
-                      <Text style={styles.modalSubmitBtnText}>Save Lab Report</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
-              {patient.investigations?.map((inv, idx) => (
-                <View key={idx} style={styles.labCard}>
-                  <Text style={styles.labDate}>Report Date: {inv.date}</Text>
-                  <View style={styles.labGrid}>
-                    <View style={styles.labCell}><Text style={styles.labCellLabel}>Hb (Hemoglobin)</Text><Text style={styles.labCellVal}>{inv.hb} g/dL</Text></View>
-                    <View style={styles.labCell}><Text style={styles.labCellLabel}>TC (Total Count)</Text><Text style={styles.labCellVal}>{inv.tc} /cumm</Text></View>
-                    <View style={styles.labCell}><Text style={styles.labCellLabel}>Platelets</Text><Text style={styles.labCellVal}>{inv.platelets} /cumm</Text></View>
-                    <View style={styles.labCell}><Text style={styles.labCellLabel}>INR</Text><Text style={styles.labCellVal}>{inv.inr}</Text></View>
-                  </View>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* SOAP Note Modal */}
-      <Modal visible={activeModal === 'soap'} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <BookOpen size={18} color="#F97316" />
-                <Text style={styles.modalTitle}>SOAP Note</Text>
-              </View>
-              <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={{ paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
-              {['Subjective', 'Objective', 'Assessment', 'Plan'].map((section) => (
-                <View key={section} style={{ marginBottom: 12 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                    <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: section === 'Subjective' ? '#DBEAFE' : section === 'Objective' ? '#D1FAE5' : section === 'Assessment' ? '#FEF3C7' : '#FCE7F3', alignItems: 'center', justifyContent: 'center', marginRight: 8 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: section === 'Subjective' ? '#3B82F6' : section === 'Objective' ? '#10B981' : section === 'Assessment' ? '#F59E0B' : '#EC4899' }}>
-                        {section.charAt(0)}
+                  );
+                }
+                return admins.map((admin, idx) => (
+                  <View key={admin.id || idx} style={styles.marHistoryItem}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <View style={[styles.statusBadge, {
+                        backgroundColor: admin.status === 'Given' ? '#D1FAE5' : admin.status === 'Held' ? '#FEF3C7' : '#FEE2E2'
+                      }]}>
+                        <Text style={{
+                          fontSize: 9,
+                          fontWeight: '800',
+                          color: admin.status === 'Given' ? '#065F46' : admin.status === 'Held' ? '#92400E' : '#991B1B'
+                        }}>{admin.status.toUpperCase()}</Text>
+                      </View>
+                      <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>
+                        {new Date(admin.administeredAt).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
                       </Text>
                     </View>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: '#374151' }}>{section}</Text>
+                    <Text style={{ fontSize: 11, color: theme.colors.textPrimary, marginTop: 4 }}>
+                      By: {admin.administeredBy}
+                    </Text>
+                    {admin.notes ? (
+                      <Text style={{ fontSize: 11, color: theme.colors.textSecondary, fontStyle: 'italic', marginTop: 2 }}>
+                        Note: {admin.notes}
+                      </Text>
+                    ) : null}
                   </View>
-                  <TextInput
-                    style={[styles.modalInput, { minHeight: 70, textAlignVertical: 'top' }]}
-                    placeholder={`Enter ${section.toLowerCase()} findings...`}
-                    placeholderTextColor="#9CA3AF"
-                    value={soapNote[section.toLowerCase()]}
-                    onChangeText={t => setSoapNote(prev => ({ ...prev, [section.toLowerCase()]: t }))}
-                    multiline
-                  />
-                </View>
-              ))}
-              <View style={styles.modalButtonGroup}>
-                <TouchableOpacity
-                  style={[styles.modalSubmitBtn, { flex: 1 }]}
-                  onPress={() => handleSaveSoapNote(false)}
-                  disabled={soapLoading}
-                >
-                  {soapLoading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.modalSubmitBtnText}>Save & Log</Text>}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalSubmitBtn, { flex: 1, backgroundColor: '#047857' }]}
-                  onPress={() => handleSaveSoapNote(true)}
-                  disabled={soapLoading}
-                >
-                  <Text style={styles.modalSubmitBtnText}>Save & Share</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={{ height: 20 }} />
+                ));
+              })()}
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* MAR Log Modal */}
-      <Modal visible={activeModal === 'mar'} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <ClipboardCheck size={20} color="#0E7490" />
-                <Text style={styles.modalTitle}>Medication Administration (MAR)</Text>
-              </View>
-              <TouchableOpacity onPress={() => { setActiveModal(null); setSelectedMedForMar(null); }}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            {selectedMedForMar ? (
-              <View style={{ flex: 1 }}>
-                <TouchableOpacity 
-                  style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }} 
-                  onPress={() => setSelectedMedForMar(null)}
-                >
-                  <ChevronLeft size={16} color={theme.colors.primary} />
-                  <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 13, marginLeft: 4 }}>
-                    Back to Med List
-                  </Text>
-                </TouchableOpacity>
-
-                <View style={[styles.detailCard, { borderLeftWidth: 4, borderLeftColor: '#0E7490' }]}>
-                  <Text style={{ fontWeight: '800', fontSize: 14, color: theme.colors.textPrimary }}>
-                    {selectedMedForMar.name}
-                  </Text>
-                  <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginTop: 2 }}>
-                    Route: {selectedMedForMar.route} • Frequency: {selectedMedForMar.frequency}
-                  </Text>
-                  {selectedMedForMar.indication ? (
-                    <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginTop: 2 }}>
-                      Indication: {selectedMedForMar.indication}
-                    </Text>
-                  ) : null}
-                </View>
-
-                {isNurse && (
-                  <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 12 }}>
-                    <Text style={{ fontWeight: '700', fontSize: 12, color: '#374151', marginBottom: 6 }}>
-                      Record Administration
-                    </Text>
-                    
-                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-                      {['Given', 'Held', 'Refused'].map((st) => (
-                        <TouchableOpacity
-                          key={st}
-                          onPress={() => setMarStatus(st)}
-                          style={{
-                            flex: 1,
-                            paddingVertical: 8,
-                            borderRadius: 8,
-                            alignItems: 'center',
-                            backgroundColor: marStatus === st 
-                              ? (st === 'Given' ? '#D1FAE5' : st === 'Held' ? '#FEF3C7' : '#FEE2E2') 
-                              : '#E2E8F0',
-                            borderWidth: 1,
-                            borderColor: marStatus === st 
-                              ? (st === 'Given' ? '#10B981' : st === 'Held' ? '#F59E0B' : '#EF4444') 
-                              : 'transparent'
-                          }}
-                        >
-                          <Text style={{
-                            fontSize: 11,
-                            fontWeight: '700',
-                            color: marStatus === st 
-                              ? (st === 'Given' ? '#065F46' : st === 'Held' ? '#92400E' : '#991B1B') 
-                              : '#4B5563'
-                          }}>
-                            {st}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-
-                    <TextInput
-                      style={[styles.modalInput, { minHeight: 40, backgroundColor: '#FFF', paddingHorizontal: 8, borderRadius: 8 }]}
-                      placeholder="Add administration notes (optional)..."
-                      value={marNotes}
-                      onChangeText={setMarNotes}
-                    />
-
-                    <TouchableOpacity
-                      style={[styles.modalSubmitBtn, { marginTop: 8, paddingVertical: 10 }]}
-                      onPress={handleSaveMar}
-                      disabled={marLoading}
-                    >
-                      {marLoading ? (
-                        <ActivityIndicator size="small" color="#FFF" />
-                      ) : (
-                        <Text style={styles.modalSubmitBtnText}>Log Dose</Text>
-                      )}
-                    </TouchableOpacity>
+        ) : (
+          <ScrollView>
+            <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 8 }}>
+              Select an active medication to view history or record administration:
+            </Text>
+            {(() => {
+              const activeMeds = (patient.medications || []).filter(m => m.status === 'active');
+              if (activeMeds.length === 0) {
+                return (
+                  <View style={styles.emptyLogsCard}>
+                    <Text style={styles.emptyLogsText}>No active medications prescribed for this patient.</Text>
                   </View>
-                )}
-
-                <Text style={styles.subSectionTitle}>Dose Administration History</Text>
-                <ScrollView>
-                  {(() => {
-                    const liveMed = (patient.medications || []).find(m => m.id === selectedMedForMar.id);
-                    const admins = liveMed?.administrations || [];
-                    if (admins.length === 0) {
-                      return (
-                        <View style={styles.emptyLogsCard}>
-                          <Text style={styles.emptyLogsText}>No administrations logged for this medication.</Text>
-                        </View>
-                      );
-                    }
-                    return admins.map((admin, idx) => (
-                      <View key={admin.id || idx} style={styles.marHistoryItem}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <View style={[styles.statusBadge, {
-                            backgroundColor: admin.status === 'Given' ? '#D1FAE5' : admin.status === 'Held' ? '#FEF3C7' : '#FEE2E2'
-                          }]}>
-                            <Text style={{
-                              fontSize: 9,
-                              fontWeight: '800',
-                              color: admin.status === 'Given' ? '#065F46' : admin.status === 'Held' ? '#92400E' : '#991B1B'
-                            }}>{admin.status.toUpperCase()}</Text>
-                          </View>
-                          <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>
-                            {new Date(admin.administeredAt).toLocaleString([], { hour: '2-digit', minute: '2-digit', month: 'short', day: 'numeric' })}
-                          </Text>
-                        </View>
-                        <Text style={{ fontSize: 11, color: theme.colors.textPrimary, marginTop: 4 }}>
-                          By: {admin.administeredBy}
-                        </Text>
-                        {admin.notes ? (
-                          <Text style={{ fontSize: 11, color: theme.colors.textSecondary, fontStyle: 'italic', marginTop: 2 }}>
-                            Note: {admin.notes}
-                          </Text>
-                        ) : null}
-                      </View>
-                    ));
-                  })()}
-                </ScrollView>
-              </View>
-            ) : (
-              <ScrollView>
-                <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 8 }}>
-                  Select an active medication to view history or record administration:
-                </Text>
-                {(() => {
-                  const activeMeds = (patient.medications || []).filter(m => m.status === 'active');
-                  if (activeMeds.length === 0) {
-                    return (
-                      <View style={styles.emptyLogsCard}>
-                        <Text style={styles.emptyLogsText}>No active medications prescribed for this patient.</Text>
-                      </View>
-                    );
-                  }
-                  return activeMeds.map((med, idx) => (
-                    <TouchableOpacity
-                      key={med.id || idx}
-                      style={[styles.medicationItem, { borderLeftWidth: 3, borderLeftColor: '#0E7490' }]}
-                      onPress={() => handleOpenMar(med)}
-                      activeOpacity={0.8}
-                    >
-                      <Pill size={16} color="#0E7490" style={{ marginRight: 8 }} />
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.medName}>{med.name}</Text>
-                        <Text style={styles.medDose}>{med.route} • {med.frequency}</Text>
-                      </View>
-                      <ChevronRight size={16} color={theme.colors.textSecondary} />
-                    </TouchableOpacity>
-                  ));
-                })()}
-              </ScrollView>
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+                );
+              }
+              return activeMeds.map((med, idx) => (
+                <TouchableOpacity
+                  key={med.id || idx}
+                  style={[styles.medicationItem, { borderLeftWidth: 3, borderLeftColor: '#0E7490' }]}
+                  onPress={() => handleOpenMar(med)}
+                  activeOpacity={0.8}
+                >
+                  <Pill size={16} color="#0E7490" style={{ marginRight: 8 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.medName}>{med.name}</Text>
+                    <Text style={styles.medDose}>{med.route} • {med.frequency}</Text>
+                  </View>
+                  <ChevronRight size={16} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              ));
+            })()}
+          </ScrollView>
+        )}
+      </BottomSheet>
 
       {/* Shift Handover Modal */}
-      <Modal visible={activeModal === 'handover'} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <ArrowRightLeft size={18} color="#15803D" />
-                <Text style={styles.modalTitle}>Shift Handover Sheets</Text>
+      <BottomSheet
+        visible={activeModal === 'handover'}
+        onClose={() => setActiveModal(null)}
+        title="Shift Handover Sheets"
+        height="85%"
+      >
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {isNurse && (
+            <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 16 }}>
+              <Text style={{ fontWeight: '800', fontSize: 13, color: '#374151', marginBottom: 8 }}>
+                Log New Handover
+              </Text>
+
+              <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginBottom: 4 }}>Select Shift</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+                {['Morning', 'Evening', 'Night'].map((sh) => (
+                  <TouchableOpacity
+                    key={sh}
+                    onPress={() => setHandoverShift(sh)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 6,
+                      borderRadius: 6,
+                      alignItems: 'center',
+                      backgroundColor: handoverShift === sh ? '#D1FAE5' : '#E2E8F0',
+                      borderWidth: 1,
+                      borderColor: handoverShift === sh ? '#10B981' : 'transparent'
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: handoverShift === sh ? '#065F46' : '#4B5563' }}>
+                      {sh}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-              <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <X size={22} color={theme.colors.textSecondary} />
+
+              <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginBottom: 4 }}>Select Incoming Staff</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+                {practitioners.length > 0 ? (
+                  practitioners.map((doc, idx) => (
+                    <TouchableOpacity
+                      key={doc.id || idx}
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 16,
+                        marginRight: 6,
+                        backgroundColor: handoverIncoming === doc.name ? '#15803D' : '#E2E8F0',
+                        flexDirection: 'row',
+                        alignItems: 'center'
+                      }}
+                      onPress={() => setHandoverIncoming(doc.name)}
+                    >
+                      <User size={12} color={handoverIncoming === doc.name ? '#FFF' : '#4B5563'} style={{ marginRight: 4 }} />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: handoverIncoming === doc.name ? '#FFF' : '#4B5563' }}>
+                        {doc.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))
+                ) : (
+                  <Text style={{ fontSize: 10, color: theme.colors.textSecondary, paddingVertical: 4 }}>
+                    Loading practitioners...
+                  </Text>
+                )}
+              </ScrollView>
+
+              <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginBottom: 4 }}>Handover Summary / Notes</Text>
+              <TextInput
+                style={[styles.modalInput, { minHeight: 60, textAlignVertical: 'top', backgroundColor: '#FFF', paddingHorizontal: 8, borderRadius: 8 }]}
+                placeholder="Summarize vitals, pending lab reviews, and special tasks..."
+                placeholderTextColor="#9CA3AF"
+                value={handoverNotes}
+                onChangeText={setHandoverNotes}
+                multiline
+              />
+
+              <TouchableOpacity
+                style={[styles.modalSubmitBtn, { marginTop: 10, paddingVertical: 10, backgroundColor: '#15803D' }]}
+                onPress={handleSaveHandover}
+                disabled={handoverLoading}
+              >
+                {handoverLoading ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.modalSubmitBtnText}>Submit Handover</Text>
+                )}
               </TouchableOpacity>
             </View>
+          )}
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {isNurse && (
-                <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 16 }}>
-                  <Text style={{ fontWeight: '800', fontSize: 13, color: '#374151', marginBottom: 8 }}>
-                    Log New Handover
+          <Text style={styles.subSectionTitle}>Handover Timeline</Text>
+          {(() => {
+            const handovers = patient.shiftHandovers || [];
+            if (handovers.length === 0) {
+              return (
+                <View style={styles.emptyLogsCard}>
+                  <Text style={styles.emptyLogsText}>No shift handovers logged yet.</Text>
+                </View>
+              );
+            }
+            return handovers.map((h, idx) => (
+              <View key={h.id || idx} style={styles.handoverTimelineItem}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontWeight: '800', fontSize: 12, color: theme.colors.textPrimary }}>
+                    {h.shift} Shift
                   </Text>
+                  <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>{h.date}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                  <Text style={{ fontSize: 10, color: '#4B5563', backgroundColor: '#E2E8F0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                    From: {h.outgoingStaff}
+                  </Text>
+                  <Text style={{ fontSize: 10, color: '#4B5563', backgroundColor: '#E2E8F0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                    To: {h.incomingStaff}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: 12, color: theme.colors.textPrimary, marginTop: 6, lineHeight: 16 }}>
+                  {h.notes}
+                </Text>
+              </View>
+            ));
+          })()}
+        </ScrollView>
+      </BottomSheet>
 
-                  <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginBottom: 4 }}>Select Shift</Text>
-                  <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-                    {['Morning', 'Evening', 'Night'].map((sh) => (
-                      <TouchableOpacity
-                        key={sh}
-                        onPress={() => setHandoverShift(sh)}
-                        style={{
-                          flex: 1,
-                          paddingVertical: 6,
-                          borderRadius: 6,
-                          alignItems: 'center',
-                          backgroundColor: handoverShift === sh ? '#D1FAE5' : '#E2E8F0',
-                          borderWidth: 1,
-                          borderColor: handoverShift === sh ? '#10B981' : 'transparent'
-                        }}
-                      >
-                        <Text style={{ fontSize: 10, fontWeight: '700', color: handoverShift === sh ? '#065F46' : '#4B5563' }}>
-                          {sh}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+      {/* Nursing Care Plan Modal */}
+      <BottomSheet
+        visible={activeModal === 'careplan'}
+        onClose={() => { setActiveModal(null); setSelectedCarePlanForEval(null); }}
+        title="Nursing Care Plans"
+        height="85%"
+      >
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {isNurse && (
+            selectedCarePlanForEval ? (
+              <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 16 }}>
+                <Text style={{ fontWeight: '800', fontSize: 13, color: '#374151', marginBottom: 8 }}>
+                  Evaluate Care Plan
+                </Text>
+                <Text style={{ fontSize: 12, color: theme.colors.textPrimary, marginBottom: 4, fontWeight: '700' }}>
+                  Diagnosis: {selectedCarePlanForEval.nursingDiagnosis}
+                </Text>
+                <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginBottom: 8 }}>
+                  Goals: {selectedCarePlanForEval.goals}
+                </Text>
 
-                  <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginBottom: 4 }}>Select Incoming Staff</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
-                    {practitioners.length > 0 ? (
-                      practitioners.map((doc, idx) => (
-                        <TouchableOpacity
-                          key={doc.id || idx}
-                          style={{
-                            paddingHorizontal: 12,
-                            paddingVertical: 6,
-                            borderRadius: 16,
-                            marginRight: 6,
-                            backgroundColor: handoverIncoming === doc.name ? '#15803D' : '#E2E8F0',
-                            flexDirection: 'row',
-                            alignItems: 'center'
-                          }}
-                          onPress={() => setHandoverIncoming(doc.name)}
-                        >
-                          <User size={12} color={handoverIncoming === doc.name ? '#FFF' : '#4B5563'} style={{ marginRight: 4 }} />
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: handoverIncoming === doc.name ? '#FFF' : '#4B5563' }}>
-                            {doc.name}
-                          </Text>
-                        </TouchableOpacity>
-                      ))
-                    ) : (
-                      <Text style={{ fontSize: 10, color: theme.colors.textSecondary, paddingVertical: 4 }}>
-                        Loading practitioners...
-                      </Text>
-                    )}
-                  </ScrollView>
+                <TextInput
+                  style={[styles.modalInput, { minHeight: 60, textAlignVertical: 'top', backgroundColor: '#FFF', paddingHorizontal: 8, borderRadius: 8 }]}
+                  placeholder="Enter outcomes (e.g. Achieved - pain resolved. Or Partially Achieved - temp reduced to 37.5°C)..."
+                  placeholderTextColor="#9CA3AF"
+                  value={carePlanEvaluation}
+                  onChangeText={text => setCarePlanEvaluation(text)}
+                  multiline
+                />
 
-                  <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginBottom: 4 }}>Handover Summary / Notes</Text>
-                  <TextInput
-                    style={[styles.modalInput, { minHeight: 60, textAlignVertical: 'top', backgroundColor: '#FFF', paddingHorizontal: 8, borderRadius: 8 }]}
-                    placeholder="Summarize vitals, pending lab reviews, and special tasks..."
-                    placeholderTextColor="#9CA3AF"
-                    value={handoverNotes}
-                    onChangeText={setHandoverNotes}
-                    multiline
-                  />
-
+                <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
                   <TouchableOpacity
-                    style={[styles.modalSubmitBtn, { marginTop: 10, paddingVertical: 10, backgroundColor: '#15803D' }]}
-                    onPress={handleSaveHandover}
-                    disabled={handoverLoading}
+                    style={[styles.modalCancelBtn, { flex: 1 }]}
+                    onPress={() => setSelectedCarePlanForEval(null)}
                   >
-                    {handoverLoading ? (
+                    <Text style={styles.modalCancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalSubmitBtn, { flex: 1, backgroundColor: '#1D4ED8' }]}
+                    onPress={() => handleSaveCarePlanEvaluation(selectedCarePlanForEval.id)}
+                    disabled={carePlanLoading}
+                  >
+                    {carePlanLoading ? (
                       <ActivityIndicator size="small" color="#FFF" />
                     ) : (
-                      <Text style={styles.modalSubmitBtnText}>Submit Handover</Text>
+                      <Text style={styles.modalSubmitBtnText}>Submit Eval</Text>
                     )}
                   </TouchableOpacity>
                 </View>
-              )}
-
-              <Text style={styles.subSectionTitle}>Handover Timeline</Text>
-              {(() => {
-                const handovers = patient.shiftHandovers || [];
-                if (handovers.length === 0) {
-                  return (
-                    <View style={styles.emptyLogsCard}>
-                      <Text style={styles.emptyLogsText}>No shift handovers logged yet.</Text>
-                    </View>
-                  );
-                }
-                return handovers.map((h, idx) => (
-                  <View key={h.id || idx} style={styles.handoverTimelineItem}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ fontWeight: '800', fontSize: 12, color: theme.colors.textPrimary }}>
-                        {h.shift} Shift
-                      </Text>
-                      <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>{h.date}</Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-                      <Text style={{ fontSize: 10, color: '#4B5563', backgroundColor: '#E2E8F0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                        From: {h.outgoingStaff}
-                      </Text>
-                      <Text style={{ fontSize: 10, color: '#4B5563', backgroundColor: '#E2E8F0', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                        To: {h.incomingStaff}
-                      </Text>
-                    </View>
-                    <Text style={{ fontSize: 12, color: theme.colors.textPrimary, marginTop: 6, lineHeight: 16 }}>
-                      {h.notes}
-                    </Text>
-                  </View>
-                ));
-              })()}
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Nursing Care Plan Modal */}
-      <Modal visible={activeModal === 'careplan'} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <ClipboardList size={18} color="#1D4ED8" />
-                <Text style={styles.modalTitle}>Nursing Care Plans (NCP)</Text>
               </View>
-              <TouchableOpacity onPress={() => { setActiveModal(null); setSelectedCarePlanForEval(null); }}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
+            ) : (
+              <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 16 }}>
+                <Text style={{ fontWeight: '800', fontSize: 13, color: '#374151', marginBottom: 8 }}>
+                  Create New Care Plan
+                </Text>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {isNurse && (
-                selectedCarePlanForEval ? (
-                  <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 16 }}>
-                    <Text style={{ fontWeight: '800', fontSize: 13, color: '#374151', marginBottom: 8 }}>
-                      Evaluate Care Plan
-                    </Text>
-                    <Text style={{ fontSize: 12, color: theme.colors.textPrimary, marginBottom: 4, fontWeight: '700' }}>
-                      Diagnosis: {selectedCarePlanForEval.nursingDiagnosis}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: theme.colors.textSecondary, marginBottom: 8 }}>
-                      Goals: {selectedCarePlanForEval.goals}
-                    </Text>
+                <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginBottom: 2 }}>Nursing Diagnosis</Text>
+                <TextInput
+                  style={[styles.modalInput, { backgroundColor: '#FFF', paddingHorizontal: 8, borderRadius: 8, marginBottom: 8 }]}
+                  placeholder="e.g. Acute pain related to surgical incision"
+                  value={carePlanDiagnosis}
+                  onChangeText={text => setCarePlanDiagnosis(text)}
+                />
 
-                    <TextInput
-                      style={[styles.modalInput, { minHeight: 60, textAlignVertical: 'top', backgroundColor: '#FFF', paddingHorizontal: 8, borderRadius: 8 }]}
-                      placeholder="Enter outcomes (e.g. Achieved - pain resolved. Or Partially Achieved - temp reduced to 37.5°C)..."
-                      placeholderTextColor="#9CA3AF"
-                      value={carePlanEvaluation}
-                      onChangeText={text => setCarePlanEvaluation(text)}
-                      multiline
-                    />
+                <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginBottom: 2 }}>Expected Goals</Text>
+                <TextInput
+                  style={[styles.modalInput, { backgroundColor: '#FFF', paddingHorizontal: 8, borderRadius: 8, marginBottom: 8 }]}
+                  placeholder="e.g. Pain scale reduced to <3/10 within 2 hours"
+                  value={carePlanGoals}
+                  onChangeText={text => setCarePlanGoals(text)}
+                />
 
-                    <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-                      <TouchableOpacity
-                        style={[styles.modalCancelBtn, { flex: 1 }]}
-                        onPress={() => setSelectedCarePlanForEval(null)}
-                      >
-                        <Text style={styles.modalCancelBtnText}>Cancel</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.modalSubmitBtn, { flex: 1, backgroundColor: '#1D4ED8' }]}
-                        onPress={() => handleSaveCarePlanEvaluation(selectedCarePlanForEval.id)}
-                        disabled={carePlanLoading}
-                      >
-                        {carePlanLoading ? (
-                          <ActivityIndicator size="small" color="#FFF" />
-                        ) : (
-                          <Text style={styles.modalSubmitBtnText}>Submit Eval</Text>
-                        )}
-                      </TouchableOpacity>
-                    </View>
+                <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginBottom: 2 }}>Interventions</Text>
+                <TextInput
+                  style={[styles.modalInput, { minHeight: 50, textAlignVertical: 'top', backgroundColor: '#FFF', paddingHorizontal: 8, borderRadius: 8 }]}
+                  placeholder="e.g. Administer analgesics as ordered, position comfortably"
+                  value={carePlanInterventions}
+                  onChangeText={text => setCarePlanInterventions(text)}
+                  multiline
+                />
+
+                <TouchableOpacity
+                  style={[styles.modalSubmitBtn, { marginTop: 10, paddingVertical: 10, backgroundColor: '#1D4ED8' }]}
+                  onPress={handleSaveCarePlan}
+                  disabled={carePlanLoading}
+                >
+                  {carePlanLoading ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <Text style={styles.modalSubmitBtnText}>Create Care Plan</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )
+          )}
+
+          <Text style={styles.subSectionTitle}>Active Care Plans</Text>
+          {(() => {
+            const carePlans = patient.carePlans || [];
+            if (carePlans.length === 0) {
+              return (
+                <View style={styles.emptyLogsCard}>
+                  <Text style={styles.emptyLogsText}>No nursing care plans logged yet.</Text>
+                </View>
+              );
+            }
+            return carePlans.map((cp, idx) => (
+              <View key={cp.id || idx} style={styles.carePlanCard}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontWeight: '800', fontSize: 12, color: '#1D4ED8' }}>
+                    Diagnosis
+                  </Text>
+                  <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>By: {cp.authoredBy}</Text>
+                </View>
+                <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textPrimary, marginTop: 2 }}>
+                  {cp.nursingDiagnosis}
+                </Text>
+                
+                <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginTop: 6 }}>Goals</Text>
+                <Text style={{ fontSize: 11, color: theme.colors.textPrimary }}>{cp.goals}</Text>
+
+                <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginTop: 6 }}>Interventions</Text>
+                <Text style={{ fontSize: 11, color: theme.colors.textPrimary }}>{cp.interventions}</Text>
+
+                {cp.evaluation ? (
+                  <View style={{ backgroundColor: '#D1FAE5', padding: 8, borderRadius: 8, marginTop: 8, borderWidth: 1, borderColor: '#10B981' }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#065F46' }}>EVALUATION OUTCOME</Text>
+                    <Text style={{ fontSize: 11, color: '#064E3B', marginTop: 2 }}>{cp.evaluation}</Text>
                   </View>
                 ) : (
-                  <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 16 }}>
-                    <Text style={{ fontWeight: '800', fontSize: 13, color: '#374151', marginBottom: 8 }}>
-                      Create New Care Plan
-                    </Text>
-
-                    <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginBottom: 2 }}>Nursing Diagnosis</Text>
-                    <TextInput
-                      style={[styles.modalInput, { backgroundColor: '#FFF', paddingHorizontal: 8, borderRadius: 8, marginBottom: 8 }]}
-                      placeholder="e.g. Acute pain related to surgical incision"
-                      value={carePlanDiagnosis}
-                      onChangeText={text => setCarePlanDiagnosis(text)}
-                    />
-
-                    <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginBottom: 2 }}>Expected Goals</Text>
-                    <TextInput
-                      style={[styles.modalInput, { backgroundColor: '#FFF', paddingHorizontal: 8, borderRadius: 8, marginBottom: 8 }]}
-                      placeholder="e.g. Pain scale reduced to <3/10 within 2 hours"
-                      value={carePlanGoals}
-                      onChangeText={text => setCarePlanGoals(text)}
-                    />
-
-                    <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginBottom: 2 }}>Interventions</Text>
-                    <TextInput
-                      style={[styles.modalInput, { minHeight: 50, textAlignVertical: 'top', backgroundColor: '#FFF', paddingHorizontal: 8, borderRadius: 8 }]}
-                      placeholder="e.g. Administer analgesics as ordered, position comfortably"
-                      value={carePlanInterventions}
-                      onChangeText={text => setCarePlanInterventions(text)}
-                      multiline
-                    />
-
+                  isNurse && (
                     <TouchableOpacity
-                      style={[styles.modalSubmitBtn, { marginTop: 10, paddingVertical: 10, backgroundColor: '#1D4ED8' }]}
-                      onPress={handleSaveCarePlan}
-                      disabled={carePlanLoading}
+                      style={{
+                        backgroundColor: '#FFF',
+                        borderWidth: 1,
+                        borderColor: '#1D4ED8',
+                        borderRadius: 6,
+                        paddingVertical: 6,
+                        alignItems: 'center',
+                        marginTop: 10
+                      }}
+                      onPress={() => {
+                        setSelectedCarePlanForEval(cp);
+                        setCarePlanEvaluation('');
+                      }}
                     >
-                      {carePlanLoading ? (
-                        <ActivityIndicator size="small" color="#FFF" />
-                      ) : (
-                        <Text style={styles.modalSubmitBtnText}>Create Care Plan</Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
-                )
-              )}
-
-              <Text style={styles.subSectionTitle}>Active Care Plans</Text>
-              {(() => {
-                const carePlans = patient.carePlans || [];
-                if (carePlans.length === 0) {
-                  return (
-                    <View style={styles.emptyLogsCard}>
-                      <Text style={styles.emptyLogsText}>No nursing care plans logged yet.</Text>
-                    </View>
-                  );
-                }
-                return carePlans.map((cp, idx) => (
-                  <View key={cp.id || idx} style={styles.carePlanCard}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ fontWeight: '800', fontSize: 12, color: '#1D4ED8' }}>
-                        Diagnosis
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#1D4ED8' }}>
+                        Evaluate Progress
                       </Text>
-                      <Text style={{ fontSize: 10, color: theme.colors.textSecondary }}>By: {cp.authoredBy}</Text>
-                    </View>
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textPrimary, marginTop: 2 }}>
-                      {cp.nursingDiagnosis}
-                    </Text>
-                    
-                    <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginTop: 6 }}>Goals</Text>
-                    <Text style={{ fontSize: 11, color: theme.colors.textPrimary }}>{cp.goals}</Text>
-
-                    <Text style={{ fontWeight: '700', fontSize: 11, color: '#4B5563', marginTop: 6 }}>Interventions</Text>
-                    <Text style={{ fontSize: 11, color: theme.colors.textPrimary }}>{cp.interventions}</Text>
-
-                    {cp.evaluation ? (
-                      <View style={{ backgroundColor: '#D1FAE5', padding: 8, borderRadius: 8, marginTop: 8, borderWidth: 1, borderColor: '#10B981' }}>
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#065F46' }}>EVALUATION OUTCOME</Text>
-                        <Text style={{ fontSize: 11, color: '#064E3B', marginTop: 2 }}>{cp.evaluation}</Text>
-                      </View>
-                    ) : (
-                      isNurse && (
-                        <TouchableOpacity
-                          style={{
-                            backgroundColor: '#FFF',
-                            borderWidth: 1,
-                            borderColor: '#1D4ED8',
-                            borderRadius: 6,
-                            paddingVertical: 6,
-                            alignItems: 'center',
-                            marginTop: 10
-                          }}
-                          onPress={() => {
-                            setSelectedCarePlanForEval(cp);
-                            setCarePlanEvaluation('');
-                          }}
-                        >
-                          <Text style={{ fontSize: 11, fontWeight: '700', color: '#1D4ED8' }}>
-                            Evaluate Progress
-                          </Text>
-                        </TouchableOpacity>
-                      )
-                    )}
-                  </View>
-                ));
-              })()}
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+                    </TouchableOpacity>
+                  )
+                )}
+              </View>
+            ));
+          })()}
+        </ScrollView>
+      </BottomSheet>
 
     </ClinicalCanvas>
   );

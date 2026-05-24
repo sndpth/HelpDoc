@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, StatusBar, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Plus, Users, User, Search, Check, X, MessageSquare } from 'lucide-react-native';
+import Animated, { FadeIn, ZoomIn, SlideInDown, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import AnimatedPressable from '../components/AnimatedPressable';
+import AnimatedMount from '../components/AnimatedMount';
+import SkeletonLoader from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
+import BottomSheet from '../components/BottomSheet';
 import useStore from '../store/useStore';
 import { theme } from '../constants/theme';
 import ClinicalCanvas from '../components/ClinicalCanvas';
@@ -26,6 +32,25 @@ const ChatListScreen = ({ navigation }) => {
   const [groupName, setGroupName] = useState('');
   const [selectedPractitioners, setSelectedPractitioners] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+
+  const badgeScale = useSharedValue(1);
+
+  useEffect(() => {
+    badgeScale.value = withRepeat(
+      withSequence(
+        withTiming(1.15, { duration: 600 }),
+        withTiming(1, { duration: 600 })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedBadgeStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: badgeScale.value }],
+    };
+  });
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -116,7 +141,7 @@ const ChatListScreen = ({ navigation }) => {
     (p.specialty && p.specialty.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const renderChatItem = ({ item }) => {
+  const renderChatItem = ({ item, index }) => {
     const thread = chats[item.id] || [];
     const lastMessage = thread.length > 0 ? thread[thread.length - 1] : (item.messages && item.messages.length > 0 ? item.messages[0] : null);
     const unreadCount = unreadCounts[item.id] || 0;
@@ -124,42 +149,44 @@ const ChatListScreen = ({ navigation }) => {
     const subtitle = getRoomSpecialty(item);
 
     return (
-      <TouchableOpacity 
-        style={styles.chatItem} 
-        onPress={() => handleOpenRoom(item)}
-      >
-        <View style={[
-          styles.avatar, 
-          item.type === 'GROUP' && styles.groupAvatar,
-          item.type === 'PATIENT' && styles.patientAvatar
-        ]}>
-          {item.type === 'GROUP' ? (
-            <Users size={20} color={theme.colors.primary} />
-          ) : item.type === 'PATIENT' ? (
-            <MessageSquare size={20} color="#E28743" />
-          ) : (
-            <Text style={styles.avatarText}>{getRoomAvatarChar(item)}</Text>
-          )}
-        </View>
-        
-        <View style={styles.chatInfo}>
-          <View style={styles.chatHeader}>
-            <Text style={styles.doctorName} numberOfLines={1}>{displayName}</Text>
-            <Text style={styles.time}>Active</Text>
-          </View>
-          <Text style={styles.specialty}>{subtitle}</Text>
-          <View style={styles.messageRow}>
-            <Text style={styles.lastMessage} numberOfLines={1}>
-              {lastMessage ? (lastMessage.sharedRecord ? '[Patient Record]' : lastMessage.text) : 'No messages yet'}
-            </Text>
-            {unreadCount > 0 && (
-              <View style={styles.unreadBadge}>
-                <Text style={styles.unreadText}>{unreadCount}</Text>
-              </View>
+      <AnimatedMount slide delay={Math.min(index * 50, 450)}>
+        <AnimatedPressable 
+          style={styles.chatItem} 
+          onPress={() => handleOpenRoom(item)}
+        >
+          <View style={[
+            styles.avatar, 
+            item.type === 'GROUP' && styles.groupAvatar,
+            item.type === 'PATIENT' && styles.patientAvatar
+          ]}>
+            {item.type === 'GROUP' ? (
+              <Users size={20} color={theme.colors.primary} />
+            ) : item.type === 'PATIENT' ? (
+              <MessageSquare size={20} color="#E28743" />
+            ) : (
+              <Text style={styles.avatarText}>{getRoomAvatarChar(item)}</Text>
             )}
           </View>
-        </View>
-      </TouchableOpacity>
+          
+          <View style={styles.chatInfo}>
+            <View style={styles.chatHeader}>
+              <Text style={styles.doctorName} numberOfLines={1}>{displayName}</Text>
+              <Text style={styles.time}>Active</Text>
+            </View>
+            <Text style={styles.specialty}>{subtitle}</Text>
+            <View style={styles.messageRow}>
+              <Text style={styles.lastMessage} numberOfLines={1}>
+                {lastMessage ? (lastMessage.sharedRecord ? '[Patient Record]' : lastMessage.text) : 'No messages yet'}
+              </Text>
+              {unreadCount > 0 && (
+                <Animated.View style={[styles.unreadBadge, animatedBadgeStyle]}>
+                  <Text style={styles.unreadText}>{unreadCount}</Text>
+                </Animated.View>
+              )}
+            </View>
+          </View>
+        </AnimatedPressable>
+      </AnimatedMount>
     );
   };
 
@@ -171,165 +198,162 @@ const ChatListScreen = ({ navigation }) => {
           <Text style={styles.headerTitle}>Conversations</Text>
           <Text style={styles.headerSubtitle}>T.U. Teaching Hospital</Text>
         </View>
-        <TouchableOpacity onPress={() => setModalVisible(true)}>
+        <AnimatedPressable 
+          onPress={() => setModalVisible(true)}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Start new conversation"
+          accessibilityRole="button"
+        >
           <View style={styles.newContactBtn}>
             <Plus size={20} color={theme.colors.primary} />
           </View>
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
 
       {loading ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={styles.loaderText}>Syncing medical channels...</Text>
+        <View style={{ paddingHorizontal: theme.spacing.lg, paddingTop: 10 }}>
+          <SkeletonLoader variant="list" />
+          <SkeletonLoader variant="list" />
+          <SkeletonLoader variant="list" />
+          <SkeletonLoader variant="list" />
         </View>
       ) : (
         <FlatList
           data={chatRooms}
           keyExtractor={item => item.id}
-          renderItem={renderChatItem}
+          renderItem={({ item, index }) => renderChatItem({ item, index })}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <MessageSquare size={48} color={theme.colors.textSecondary} style={{ marginBottom: theme.spacing.md }} />
-              <Text style={styles.emptyTitle}>No active channels</Text>
-              <Text style={styles.emptyDescription}>
-                Tap the &apos;+&apos; icon to start a 1:1 chat or create a ward team discussion.
-              </Text>
-            </View>
+            <EmptyState 
+              icon={MessageSquare}
+              title="No active channels"
+              description="Tap the '+' icon to start a 1:1 chat or create a ward team discussion."
+              actionLabel="Start New Chat"
+              onAction={() => setModalVisible(true)}
+            />
           }
         />
       )}
 
       {/* New Conversation / Group Creation Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Conversation</Text>
-              <TouchableOpacity onPress={() => {
-                setModalVisible(false);
-                setGroupName('');
-                setSelectedPractitioners([]);
-                setSearchQuery('');
-              }}>
-                <View style={styles.closeBtn}>
-                  <X size={20} color={theme.colors.textPrimary} />
+      <BottomSheet 
+        visible={modalVisible} 
+        onClose={() => {
+          setModalVisible(false);
+          setGroupName('');
+          setSelectedPractitioners([]);
+          setSearchQuery('');
+        }}
+        title="New Conversation"
+        height="85%"
+      >
+        {/* Modal Tabs */}
+        <View style={styles.tabContainer}>
+          <AnimatedPressable 
+            style={[styles.tabButton, activeTab === 'direct' && styles.activeTabButton]}
+            onPress={() => setActiveTab('direct')}
+          >
+            <User size={16} color={activeTab === 'direct' ? theme.colors.primary : theme.colors.textSecondary} style={{ marginRight: 6 }} />
+            <Text style={[styles.tabText, activeTab === 'direct' && styles.activeTabText]}>Direct Chat</Text>
+          </AnimatedPressable>
+          <AnimatedPressable 
+            style={[styles.tabButton, activeTab === 'group' && styles.activeTabButton]}
+            onPress={() => setActiveTab('group')}
+          >
+            <Users size={16} color={activeTab === 'group' ? theme.colors.primary : theme.colors.textSecondary} style={{ marginRight: 6 }} />
+            <Text style={[styles.tabText, activeTab === 'group' && styles.activeTabText]}>Group Team</Text>
+          </AnimatedPressable>
+        </View>
+
+        {/* Group Name input (Only for Group tab) */}
+        {activeTab === 'group' && (
+          <TextInput
+            style={styles.groupNameInput}
+            placeholder="Enter Ward/Group Name (e.g. Pediatrics Round)"
+            placeholderTextColor={theme.colors.textSecondary}
+            value={groupName}
+            onChangeText={setGroupName}
+          />
+        )}
+
+        {/* Search practitioner */}
+        <View style={styles.searchBar}>
+          <Search size={18} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search staff by name or specialty..."
+            placeholderTextColor={theme.colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        {/* Practitioner List */}
+        <Text style={styles.sectionLabel}>
+          {activeTab === 'group' ? 'Select Team Members' : 'Choose practitioner'}
+        </Text>
+
+        <FlatList
+          data={filteredPractitioners}
+          keyExtractor={item => item.id}
+          contentContainerStyle={{ paddingBottom: theme.spacing.lg }}
+          renderItem={({ item }) => {
+            const isSelected = selectedPractitioners.includes(item.id);
+            return (
+              <TouchableOpacity 
+                style={styles.practitionerItem}
+                onPress={() => {
+                  if (activeTab === 'group') {
+                    toggleSelectPractitioner(item.id);
+                  } else {
+                    handleStartDirectChat(item);
+                  }
+                }}
+              >
+                <View style={styles.practitionerAvatar}>
+                  <Text style={styles.practitionerAvatarText}>{item.name.charAt(0)}</Text>
                 </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Modal Tabs */}
-            <View style={styles.tabContainer}>
-              <TouchableOpacity 
-                style={[styles.tabButton, activeTab === 'direct' && styles.activeTabButton]}
-                onPress={() => setActiveTab('direct')}
-              >
-                <User size={16} color={activeTab === 'direct' ? theme.colors.primary : theme.colors.textSecondary} style={{ marginRight: 6 }} />
-                <Text style={[styles.tabText, activeTab === 'direct' && styles.activeTabText]}>Direct Chat</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.tabButton, activeTab === 'group' && styles.activeTabButton]}
-                onPress={() => setActiveTab('group')}
-              >
-                <Users size={16} color={activeTab === 'group' ? theme.colors.primary : theme.colors.textSecondary} style={{ marginRight: 6 }} />
-                <Text style={[styles.tabText, activeTab === 'group' && styles.activeTabText]}>Group Team</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Group Name input (Only for Group tab) */}
-            {activeTab === 'group' && (
-              <TextInput
-                style={styles.groupNameInput}
-                placeholder="Enter Ward/Group Name (e.g. Pediatrics Round)"
-                placeholderTextColor={theme.colors.textSecondary}
-                value={groupName}
-                onChangeText={setGroupName}
-              />
-            )}
-
-            {/* Search practitioner */}
-            <View style={styles.searchBar}>
-              <Search size={18} color={theme.colors.textSecondary} style={{ marginRight: 8 }} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search staff by name or specialty..."
-                placeholderTextColor={theme.colors.textSecondary}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-            </View>
-
-            {/* Practitioner List */}
-            <Text style={styles.sectionLabel}>
-              {activeTab === 'group' ? 'Select Team Members' : 'Choose practitioner'}
-            </Text>
-
-            <FlatList
-              data={filteredPractitioners}
-              keyExtractor={item => item.id}
-              contentContainerStyle={{ paddingBottom: theme.spacing.lg }}
-              renderItem={({ item }) => {
-                const isSelected = selectedPractitioners.includes(item.id);
-                return (
-                  <TouchableOpacity 
-                    style={styles.practitionerItem}
-                    onPress={() => {
-                      if (activeTab === 'group') {
-                        toggleSelectPractitioner(item.id);
-                      } else {
-                        handleStartDirectChat(item);
-                      }
-                    }}
-                  >
-                    <View style={styles.practitionerAvatar}>
-                      <Text style={styles.practitionerAvatarText}>{item.name.charAt(0)}</Text>
-                    </View>
-                    <View style={styles.practitionerInfo}>
-                      <Text style={styles.practitionerName}>{item.name}</Text>
-                      <Text style={styles.practitionerSpecialty}>{item.specialty || 'General Clinician'} • {item.role}</Text>
-                    </View>
-                    
-                    {activeTab === 'group' && (
-                      <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-                        {isSelected && <Check size={14} color={theme.colors.surface} />}
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              }}
-              ListEmptyComponent={
-                <View style={styles.emptyPractitioners}>
-                  <Text style={styles.emptyText}>No practitioners found.</Text>
+                <View style={styles.practitionerInfo}>
+                  <Text style={styles.practitionerName}>{item.name}</Text>
+                  <Text style={styles.practitionerSpecialty}>{item.specialty || 'General Clinician'} • {item.role}</Text>
                 </View>
-              }
-            />
-
-            {/* Action Button for Group Chat */}
-            {activeTab === 'group' && (
-              <TouchableOpacity 
-                style={[styles.submitButton, (submitting || !groupName.trim() || selectedPractitioners.length === 0) && styles.submitButtonDisabled]}
-                onPress={handleCreateGroup}
-                disabled={submitting || !groupName.trim() || selectedPractitioners.length === 0}
-              >
-                {submitting ? (
-                  <ActivityIndicator size="small" color={theme.colors.surface} />
-                ) : (
-                  <Text style={styles.submitButtonText}>Create Group ({selectedPractitioners.length} Selected)</Text>
+                
+                {activeTab === 'group' && (
+                  <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                    {isSelected && <Check size={14} color={theme.colors.surface} />}
+                  </View>
                 )}
               </TouchableOpacity>
+            );
+          }}
+          ListEmptyComponent={
+            <View style={styles.emptyPractitioners}>
+              <Text style={styles.emptyText}>No practitioners found.</Text>
+            </View>
+          }
+        />
+
+        {/* Action Button for Group Chat */}
+        {activeTab === 'group' && (
+          <AnimatedPressable 
+            style={[styles.submitButton, (submitting || !groupName.trim() || selectedPractitioners.length === 0) && styles.submitButtonDisabled]}
+            onPress={handleCreateGroup}
+            disabled={submitting || !groupName.trim() || selectedPractitioners.length === 0}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color={theme.colors.surface} />
+            ) : (
+              <Text style={styles.submitButtonText}>Create Group ({selectedPractitioners.length} Selected)</Text>
             )}
-          </View>
-        </View>
-      </Modal>
+          </AnimatedPressable>
+        )}
+      </BottomSheet>
     </ClinicalCanvas>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.colors.surface },
+  container: { flex: 1, backgroundColor: theme.colors.background },
   header: { 
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -419,11 +443,11 @@ const styles = StyleSheet.create({
   // Modal styling
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: theme.colors.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: theme.borderRadius.xxl,
     borderTopRightRadius: theme.borderRadius.xxl,
     height: '85%',
@@ -570,7 +594,20 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     ...theme.typography.bodySmall,
-  }
+  },
+  emptyCTA: {
+    marginTop: theme.spacing.lg,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: theme.borderRadius.lg,
+  },
+  emptyCTAText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: theme.typography.fontFamily,
+  },
 });
 
 export default ChatListScreen;

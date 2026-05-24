@@ -1,10 +1,109 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, StatusBar, RefreshControl } from 'react-native';
+import Animated, { useSharedValue, useAnimatedProps, useAnimatedStyle, withTiming, withDelay } from 'react-native-reanimated';
 import { ChevronLeft, BarChart2, Bed, Calendar, Users, Clock, RefreshCw, Layers } from 'lucide-react-native';
 import Svg, { Circle, Text as SvgText } from 'react-native-svg';
 import { theme } from '../constants/theme';
 import ClinicalCanvas from '../components/ClinicalCanvas';
 import useStore from '../store/useStore';
+import AnimatedMount from '../components/AnimatedMount';
+import AnimatedPressable from '../components/AnimatedPressable';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+const OccupancyCircle = ({ rate, current, capacity }) => {
+  const radius = 50;
+  const strokeWidth = 10;
+  const circumference = 2 * Math.PI * radius;
+  const numericRate = parseFloat(rate) || 0;
+  const cappedRate = Math.min(Math.max(numericRate, 0), 100);
+  
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = withTiming(cappedRate / 100, { duration: 1000 });
+  }, [cappedRate]);
+
+  const animatedCircleProps = useAnimatedProps(() => {
+    const strokeDashoffset = circumference - progress.value * circumference;
+    return {
+      strokeDashoffset: strokeDashoffset,
+    };
+  });
+
+  return (
+    <View style={styles.circleContainer}>
+      <Svg width={140} height={140} viewBox="0 0 120 120">
+        {/* Background circle */}
+        <Circle
+          cx="60"
+          cy="60"
+          r={radius}
+          stroke="#E2E8F0"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+        />
+        {/* Progress circle */}
+        <AnimatedCircle
+          cx="60"
+          cy="60"
+          r={radius}
+          stroke={theme.colors.primary}
+          strokeWidth={strokeWidth}
+          fill="transparent"
+          strokeDasharray={circumference}
+          animatedProps={animatedCircleProps}
+          strokeLinecap="round"
+          transform="rotate(-90 60 60)"
+        />
+        <SvgText
+          x="60"
+          y="58"
+          textAnchor="middle"
+          fontSize="18"
+          fontWeight="bold"
+          fill={theme.colors.textPrimary}
+        >
+          {`${cappedRate.toFixed(0)}%`}
+        </SvgText>
+        <SvgText
+          x="60"
+          y="76"
+          textAnchor="middle"
+          fontSize="10"
+          fontWeight="600"
+          fill={theme.colors.textSecondary}
+        >
+          Occupied
+        </SvgText>
+      </Svg>
+      <View style={styles.circleDetails}>
+        <Text style={styles.circleNumber}>{current} / {capacity}</Text>
+        <Text style={styles.circleLabel}>Total Beds Occupied</Text>
+      </View>
+    </View>
+  );
+};
+
+const AnimatedProgressBar = ({ pct, color }) => {
+  const widthVal = useSharedValue(0);
+
+  useEffect(() => {
+    widthVal.value = withDelay(150, withTiming(pct, { duration: 800 }));
+  }, [pct]);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      width: `${widthVal.value}%`,
+    };
+  });
+
+  return (
+    <View style={styles.progressBarBg}>
+      <Animated.View style={[styles.progressBarFill, { backgroundColor: color }, animatedStyle]} />
+    </View>
+  );
+};
 
 const AnalyticsScreen = ({ navigation }) => {
   const { analytics, fetchAnalytics } = useStore();
@@ -27,89 +126,39 @@ const AnalyticsScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
-  // Helper to render Circular Progress
-  const renderOccupancyCircle = (rate, current, capacity) => {
-    const radius = 50;
-    const strokeWidth = 10;
-    const circumference = 2 * Math.PI * radius;
-    const numericRate = parseFloat(rate) || 0;
-    const cappedRate = Math.min(Math.max(numericRate, 0), 100);
-    const strokeDashoffset = circumference - (cappedRate / 100) * circumference;
-
-    return (
-      <View style={styles.circleContainer}>
-        <Svg width={140} height={140} viewBox="0 0 120 120">
-          {/* Background circle */}
-          <Circle
-            cx="60"
-            cy="60"
-            r={radius}
-            stroke="#E2E8F0"
-            strokeWidth={strokeWidth}
-            fill="transparent"
-          />
-          {/* Progress circle */}
-          <Circle
-            cx="60"
-            cy="60"
-            r={radius}
-            stroke={theme.colors.primary}
-            strokeWidth={strokeWidth}
-            fill="transparent"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-            transform="rotate(-90 60 60)"
-          />
-          <SvgText
-            x="60"
-            y="58"
-            textAnchor="middle"
-            fontSize="18"
-            fontWeight="bold"
-            fill={theme.colors.textPrimary}
-          >
-            {`${cappedRate.toFixed(0)}%`}
-          </SvgText>
-          <SvgText
-            x="60"
-            y="76"
-            textAnchor="middle"
-            fontSize="10"
-            fontWeight="600"
-            fill={theme.colors.textSecondary}
-          >
-            Occupied
-          </SvgText>
-        </Svg>
-        <View style={styles.circleDetails}>
-          <Text style={styles.circleNumber}>{current} / {capacity}</Text>
-          <Text style={styles.circleLabel}>Total Beds Occupied</Text>
-        </View>
-      </View>
-    );
-  };
-
   return (
     <ClinicalCanvas style={styles.container}>
       <StatusBar barStyle="dark-content" />
       
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <AnimatedPressable 
+          onPress={() => navigation.goBack()} 
+          style={styles.backBtn}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
           <ChevronLeft size={24} color={theme.colors.primary} />
-        </TouchableOpacity>
+        </AnimatedPressable>
         <View style={styles.headerCenter}>
           <BarChart2 size={20} color={theme.colors.primary} />
           <Text style={styles.headerTitle}>Hospital Analytics</Text>
         </View>
-        <TouchableOpacity onPress={loadData} style={styles.headerRight} disabled={loading}>
+        <AnimatedPressable 
+          onPress={loadData} 
+          style={styles.headerRight} 
+          disabled={loading}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Refresh data"
+          accessibilityRole="button"
+        >
           {loading ? (
             <ActivityIndicator size="small" color={theme.colors.primary} />
           ) : (
             <RefreshCw size={18} color={theme.colors.primary} />
           )}
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
 
       <ScrollView 
@@ -139,118 +188,128 @@ const AnalyticsScreen = ({ navigation }) => {
           <View style={styles.content}>
             {/* Top Cards Grid */}
             <View style={styles.metricsGrid}>
-              <View style={[styles.metricCard, { backgroundColor: '#EFF6FF', borderColor: '#DBEAFE' }]}>
-                <View style={[styles.iconBox, { backgroundColor: '#3B82F6' }]}>
-                  <Users size={16} color="#FFF" />
+              <AnimatedMount slide delay={0} style={{ flex: 1 }}>
+                <View style={[styles.metricCard, { backgroundColor: '#EFF6FF', borderColor: '#DBEAFE', width: '100%' }]}>
+                  <View style={[styles.iconBox, { backgroundColor: '#3B82F6' }]}>
+                    <Users size={16} color="#FFF" />
+                  </View>
+                  <Text style={styles.metricVal}>{analytics.inpatientCensus}</Text>
+                  <Text style={styles.metricLabel}>Inpatients</Text>
                 </View>
-                <Text style={styles.metricVal}>{analytics.inpatientCensus}</Text>
-                <Text style={styles.metricLabel}>Inpatients</Text>
-              </View>
+              </AnimatedMount>
 
-              <View style={[styles.metricCard, { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' }]}>
-                <View style={[styles.iconBox, { backgroundColor: '#22C55E' }]}>
-                  <Calendar size={16} color="#FFF" />
+              <AnimatedMount slide delay={50} style={{ flex: 1 }}>
+                <View style={[styles.metricCard, { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7', width: '100%' }]}>
+                  <View style={[styles.iconBox, { backgroundColor: '#22C55E' }]}>
+                    <Calendar size={16} color="#FFF" />
+                  </View>
+                  <Text style={styles.metricVal}>{analytics.opdAppointmentsToday}</Text>
+                  <Text style={styles.metricLabel}>OPD Appts Today</Text>
                 </View>
-                <Text style={styles.metricVal}>{analytics.opdAppointmentsToday}</Text>
-                <Text style={styles.metricLabel}>OPD Appts Today</Text>
-              </View>
+              </AnimatedMount>
 
-              <View style={[styles.metricCard, { backgroundColor: '#F5F3FF', borderColor: '#EDE9FE' }]}>
-                <View style={[styles.iconBox, { backgroundColor: '#8B5CF6' }]}>
-                  <Clock size={16} color="#FFF" />
+              <AnimatedMount slide delay={100} style={{ flex: 1 }}>
+                <View style={[styles.metricCard, { backgroundColor: '#F5F3FF', borderColor: '#EDE9FE', width: '100%' }]}>
+                  <View style={[styles.iconBox, { backgroundColor: '#8B5CF6' }]}>
+                    <Clock size={16} color="#FFF" />
+                  </View>
+                  <Text style={styles.metricVal}>{analytics.averageLOS} d</Text>
+                  <Text style={styles.metricLabel}>Avg. Stay (LOS)</Text>
                 </View>
-                <Text style={styles.metricVal}>{analytics.averageLOS} d</Text>
-                <Text style={styles.metricLabel}>Avg. Stay (LOS)</Text>
-              </View>
+              </AnimatedMount>
             </View>
 
             {/* Bed Occupancy Circle */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Bed Occupancy Census</Text>
-              {renderOccupancyCircle(
-                analytics.bedOccupancyRate, 
-                analytics.inpatientCensus, 
-                analytics.bedCapacity
-              )}
-            </View>
+            <AnimatedMount delay={150}>
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Bed Occupancy Census</Text>
+                <OccupancyCircle 
+                  rate={analytics.bedOccupancyRate} 
+                  current={analytics.inpatientCensus} 
+                  capacity={analytics.bedCapacity}
+                />
+              </View>
+            </AnimatedMount>
 
             {/* Ward Distribution */}
-            <View style={styles.card}>
-              <View style={styles.cardHeaderRow}>
-                <Layers size={18} color={theme.colors.primary} />
-                <Text style={[styles.cardTitle, { marginLeft: 8, marginBottom: 0 }]}>Ward Distribution</Text>
-              </View>
-              {analytics.wardOccupancies && analytics.wardOccupancies.length > 0 ? (
-                analytics.wardOccupancies.map((w, index) => {
-                  const maxCount = Math.max(...analytics.wardOccupancies.map(o => o.count), 1);
-                  const pct = (w.count / maxCount) * 100;
-                  return (
-                    <View key={index} style={styles.distributionRow}>
-                      <View style={styles.distMeta}>
-                        <Text style={styles.distName} numberOfLines={1}>{w.wardName}</Text>
-                        <Text style={styles.distCount}>{w.count} Patient{w.count !== 1 ? 's' : ''}</Text>
-                      </View>
-                      <View style={styles.progressBarBg}>
-                        <View style={[styles.progressBarFill, { width: `${pct}%`, backgroundColor: '#3B82F6' }]} />
-                      </View>
-                    </View>
-                  );
-                })
-              ) : (
-                <Text style={styles.noDataText}>No inpatients currently admitted to wards.</Text>
-              )}
-            </View>
-
-            {/* Doctor Workload */}
-            <View style={styles.card}>
-              <View style={styles.cardHeaderRow}>
-                <Bed size={18} color={theme.colors.primary} />
-                <Text style={[styles.cardTitle, { marginLeft: 8, marginBottom: 0 }]}>Attending Doctor Workload</Text>
-              </View>
-              {analytics.doctorWorkloads && analytics.doctorWorkloads.length > 0 ? (
-                analytics.doctorWorkloads.map((doc, index) => {
-                  const maxWorkload = Math.max(...analytics.doctorWorkloads.map(o => o.count), 1);
-                  const pct = (doc.count / maxWorkload) * 100;
-                  return (
-                    <View key={index} style={styles.distributionRow}>
-                      <View style={styles.distMeta}>
-                        <Text style={styles.distName} numberOfLines={1}>{doc.doctorName}</Text>
-                        <Text style={styles.distCount}>{doc.count} Active IPD</Text>
-                      </View>
-                      <View style={styles.progressBarBg}>
-                        <View style={[styles.progressBarFill, { width: `${pct}%`, backgroundColor: '#8B5CF6' }]} />
-                      </View>
-                    </View>
-                  );
-                })
-              ) : (
-                <Text style={styles.noDataText}>No workload recorded.</Text>
-              )}
-            </View>
-
-            {/* General Patient Status Metrics */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Global Status Overview</Text>
-              <View style={styles.statusGrid}>
-                {analytics.statusDistribution && analytics.statusDistribution.length > 0 ? (
-                  analytics.statusDistribution.map((item, idx) => {
-                    let color = theme.colors.primary;
-                    let bg = theme.colors.primaryLight;
-                    if (item.status === 'Discharged') { color = '#10B981'; bg = '#D1FAE5'; }
-                    if (item.status === 'Deceased') { color = '#EF4444'; bg = '#FEE2E2'; }
-
+            <AnimatedMount delay={200}>
+              <View style={styles.card}>
+                <View style={styles.cardHeaderRow}>
+                  <Layers size={18} color={theme.colors.primary} />
+                  <Text style={[styles.cardTitle, { marginLeft: 8, marginBottom: 0 }]}>Ward Distribution</Text>
+                </View>
+                {analytics.wardOccupancies && analytics.wardOccupancies.length > 0 ? (
+                  analytics.wardOccupancies.map((w, index) => {
+                    const maxCount = Math.max(...analytics.wardOccupancies.map(o => o.count), 1);
+                    const pct = (w.count / maxCount) * 100;
                     return (
-                      <View key={idx} style={[styles.statusBox, { backgroundColor: bg }]}>
-                        <Text style={[styles.statusBoxCount, { color }]}>{item.count}</Text>
-                        <Text style={[styles.statusBoxLabel, { color }]}>{item.status}</Text>
+                      <View key={index} style={styles.distributionRow}>
+                        <View style={styles.distMeta}>
+                          <Text style={styles.distName} numberOfLines={1}>{w.wardName}</Text>
+                          <Text style={styles.distCount}>{w.count} Patient{w.count !== 1 ? 's' : ''}</Text>
+                        </View>
+                        <AnimatedProgressBar pct={pct} color="#3B82F6" />
                       </View>
                     );
                   })
                 ) : (
-                  <Text style={styles.noDataText}>No records stored in EMR database.</Text>
+                  <Text style={styles.noDataText}>No inpatients currently admitted to wards.</Text>
                 )}
               </View>
-            </View>
+            </AnimatedMount>
+
+            {/* Doctor Workload */}
+            <AnimatedMount delay={250}>
+              <View style={styles.card}>
+                <View style={styles.cardHeaderRow}>
+                  <Bed size={18} color={theme.colors.primary} />
+                  <Text style={[styles.cardTitle, { marginLeft: 8, marginBottom: 0 }]}>Attending Doctor Workload</Text>
+                </View>
+                {analytics.doctorWorkloads && analytics.doctorWorkloads.length > 0 ? (
+                  analytics.doctorWorkloads.map((doc, index) => {
+                    const maxWorkload = Math.max(...analytics.doctorWorkloads.map(o => o.count), 1);
+                    const pct = (doc.count / maxWorkload) * 100;
+                    return (
+                      <View key={index} style={styles.distributionRow}>
+                        <View style={styles.distMeta}>
+                          <Text style={styles.distName} numberOfLines={1}>{doc.doctorName}</Text>
+                          <Text style={styles.distCount}>{doc.count} Active IPD</Text>
+                        </View>
+                        <AnimatedProgressBar pct={pct} color="#8B5CF6" />
+                      </View>
+                    );
+                  })
+                ) : (
+                  <Text style={styles.noDataText}>No workload recorded.</Text>
+                )}
+              </View>
+            </AnimatedMount>
+
+            {/* General Patient Status Metrics */}
+            <AnimatedMount delay={300}>
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Global Status Overview</Text>
+                <View style={styles.statusGrid}>
+                  {analytics.statusDistribution && analytics.statusDistribution.length > 0 ? (
+                    analytics.statusDistribution.map((item, idx) => {
+                      let color = theme.colors.primary;
+                      let bg = theme.colors.primaryLight;
+                      if (item.status === 'Discharged') { color = '#10B981'; bg = '#D1FAE5'; }
+                      if (item.status === 'Deceased') { color = '#EF4444'; bg = '#FEE2E2'; }
+
+                      return (
+                        <View key={idx} style={[styles.statusBox, { backgroundColor: bg }]}>
+                          <Text style={[styles.statusBoxCount, { color }]}>{item.count}</Text>
+                          <Text style={[styles.statusBoxLabel, { color }]}>{item.status}</Text>
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <Text style={styles.noDataText}>No records stored in EMR database.</Text>
+                  )}
+                </View>
+              </View>
+            </AnimatedMount>
           </View>
         )}
       </ScrollView>

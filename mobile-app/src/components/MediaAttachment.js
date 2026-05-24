@@ -1,8 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image, ScrollView } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera, Image as ImageIcon, X } from 'lucide-react-native';
 import { theme } from '../constants/theme';
+import SkeletonLoader from './SkeletonLoader';
+
+const ImageWithShimmer = ({ uri }) => {
+  const [loading, setLoading] = useState(true);
+
+  return (
+    <View style={styles.imageContainer}>
+      <Image 
+        source={{ uri }} 
+        style={styles.previewImage} 
+        onLoadStart={() => setLoading(true)}
+        onLoadEnd={() => setLoading(false)}
+        onError={() => setLoading(false)}
+      />
+      {loading && (
+        <SkeletonLoader 
+          variant="square" 
+          style={styles.shimmerOverlay} 
+        />
+      )}
+    </View>
+  );
+};
 
 const MediaAttachment = ({ attachments, onAdd, onRemove }) => {
   const pickImage = async (useCamera = false) => {
@@ -43,7 +66,7 @@ const MediaAttachment = ({ attachments, onAdd, onRemove }) => {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.previewScroll}>
           {attachments.map((uri, index) => (
             <View key={index} style={styles.imageWrapper}>
-              <Image source={{ uri }} style={styles.previewImage} />
+              <ImageWithShimmer uri={uri} />
               <TouchableOpacity style={styles.removeBtn} onPress={() => onRemove(index)}>
                 <X size={12} color={theme.colors.surface} />
               </TouchableOpacity>
@@ -96,6 +119,20 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: theme.borderRadius.sm,
     backgroundColor: theme.colors.borderLight,
+  },
+  imageContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: theme.borderRadius.sm,
+    overflow: 'hidden',
+    backgroundColor: theme.colors.borderLight,
+  },
+  shimmerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   removeBtn: {
     position: 'absolute',

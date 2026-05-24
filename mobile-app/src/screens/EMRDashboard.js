@@ -1,6 +1,12 @@
-import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, Text, StatusBar, TouchableOpacity, Image, TextInput, RefreshControl, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, FlatList, StyleSheet, Text, StatusBar, TouchableOpacity, Image, TextInput, RefreshControl, Modal, ActivityIndicator } from 'react-native';
 import { Search, Users, ClipboardList, Bed, Calendar, Clock, Plus, UserPlus, Activity, FileText, MessageCircle, X, Stethoscope, BarChart2 } from 'lucide-react-native';
+import Animated, { FadeIn, ZoomIn, SlideInDown, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import AnimatedPressable from '../components/AnimatedPressable';
+import AnimatedMount from '../components/AnimatedMount';
+import SkeletonLoader from '../components/SkeletonLoader';
+import EmptyState from '../components/EmptyState';
+import BottomSheet from '../components/BottomSheet';
 import useStore from '../store/useStore';
 import { theme } from '../constants/theme';
 import ClinicalCanvas from '../components/ClinicalCanvas';
@@ -11,12 +17,43 @@ const EMRDashboard = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState('Admitted'); // 'Admitted' | 'Discharged' | 'Deceased'
   const [refreshing, setRefreshing] = useState(false);
   const [quickActionPatient, setQuickActionPatient] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+
+  const tabIndex = useSharedValue(0);
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (patients.length === 0) {
+        setIsLoading(true);
+        await fetchPatients();
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    const idx = ['Admitted', 'Discharged', 'Deceased'].indexOf(activeTab);
+    tabIndex.value = withSpring(idx, theme.animation.spring);
+  }, [activeTab]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchPatients();
     setRefreshing(false);
   };
+
+  const handleTabPress = (tab, idx) => {
+    setActiveTab(tab);
+  };
+
+  const animatedIndicatorStyle = useAnimatedStyle(() => {
+    const leftOffset = tabIndex.value * 33.33;
+    return {
+      left: `${leftOffset + 0.5}%`,
+    };
+  });
 
   const filteredPatients = patients.filter(p => 
     p.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -46,37 +83,38 @@ const EMRDashboard = ({ navigation }) => {
     return 'Good Evening';
   };
 
-  const renderAdmittedPatient = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.admittedCard} 
-      onPress={() => handlePatientPress(item)}
-      activeOpacity={0.9}
-    >
-      <View style={styles.cardHeader}>
-        <View style={styles.avatarBox}>
-          <Text style={styles.avatarText}>{item.fullName.charAt(0)}</Text>
+  const renderAdmittedPatient = ({ item, index }) => (
+    <AnimatedMount slide delay={Math.min(index * 50, 400)}>
+      <AnimatedPressable 
+        style={styles.admittedCard} 
+        onPress={() => handlePatientPress(item)}
+      >
+        <View style={styles.cardHeader}>
+          <View style={styles.avatarBox}>
+            <Text style={styles.avatarText}>{item.fullName.charAt(0)}</Text>
+          </View>
+          <View style={styles.patientMeta}>
+            <Text style={styles.admittedName}>{item.fullName}</Text>
+            <Text style={styles.admittedSub}>{item.patientId || item.recordID} ({item.age} Y / {item.gender})</Text>
+          </View>
         </View>
-        <View style={styles.patientMeta}>
-          <Text style={styles.admittedName}>{item.fullName}</Text>
-          <Text style={styles.admittedSub}>{item.patientId || item.recordID} ({item.age} Y / {item.gender})</Text>
+
+        <View style={styles.cardLocation}>
+          <Bed size={16} color="#93C5FD" style={styles.locationIcon} />
+          <Text style={styles.locationText} numberOfLines={1}>
+            {item.roomType} / Bed {item.bedNo}
+          </Text>
         </View>
-      </View>
 
-      <View style={styles.cardLocation}>
-        <Bed size={16} color="#93C5FD" style={styles.locationIcon} />
-        <Text style={styles.locationText} numberOfLines={1}>
-          {item.roomType} / Bed {item.bedNo}
-        </Text>
-      </View>
-
-      <View style={styles.cardFooter}>
-        <Calendar size={14} color="#93C5FD" />
-        <Text style={styles.footerText}>{item.dateOfAdmission}</Text>
-        <View style={styles.dot} />
-        <Clock size={14} color="#93C5FD" />
-        <Text style={styles.footerText}>{item.admissionTime || '12:00 PM'}</Text>
-      </View>
-    </TouchableOpacity>
+        <View style={styles.cardFooter}>
+          <Calendar size={14} color="#93C5FD" />
+          <Text style={styles.footerText}>{item.dateOfAdmission}</Text>
+          <View style={styles.dot} />
+          <Clock size={14} color="#93C5FD" />
+          <Text style={styles.footerText}>{item.admissionTime || '12:00 PM'}</Text>
+        </View>
+      </AnimatedPressable>
+    </AnimatedMount>
   );
 
   const getStatusStyle = (status) => {
@@ -85,63 +123,64 @@ const EMRDashboard = ({ navigation }) => {
     return { color: theme.colors.primary, bg: theme.colors.primaryLight, label: 'Admitted' };
   };
 
-  const renderAllPatient = ({ item }) => {
+  const renderAllPatient = ({ item, index }) => {
     const status = item.status || (item.dateOfDischarge ? 'Discharged' : 'Admitted');
     const badge = getStatusStyle(status);
 
     return (
-      <TouchableOpacity 
-        style={styles.allPatientCard} 
-        onPress={() => handlePatientPress(item)}
-        onLongPress={() => setQuickActionPatient(item)}
-        activeOpacity={0.9}
-      >
-        <View style={styles.allCardHeader}>
-          <View style={[styles.allAvatarBox, { backgroundColor: badge.bg }]}>
-            <Text style={[styles.allAvatarText, { color: badge.color }]}>{item.fullName.charAt(0)}</Text>
-          </View>
-          <View style={styles.allPatientMeta}>
-            <View style={styles.nameRow}>
-              <Text style={styles.allName}>{item.fullName}</Text>
-              <Text style={[styles.dateTag, { color: badge.color, backgroundColor: badge.bg }]}>
-                {badge.label}
-              </Text>
+      <AnimatedMount slide delay={Math.min(index * 50, 400)}>
+        <AnimatedPressable 
+          style={styles.allPatientCard} 
+          onPress={() => handlePatientPress(item)}
+          onLongPress={() => setQuickActionPatient(item)}
+        >
+          <View style={styles.allCardHeader}>
+            <View style={[styles.allAvatarBox, { backgroundColor: badge.bg }]}>
+              <Text style={[styles.allAvatarText, { color: badge.color }]}>{item.fullName.charAt(0)}</Text>
             </View>
-            <Text style={styles.allSub}>{item.patientId || item.recordID} ({item.age} Y / {item.gender})</Text>
-            
-            <View style={styles.allLocationRow}>
-              {status === 'Admitted' ? (
-                <>
-                  <Bed size={14} color={theme.colors.textSecondary} style={{ marginRight: 4 }} />
-                  <Text style={styles.allLocationText}>{item.roomType} - Bed {item.bedNo}</Text>
-                </>
-              ) : status === 'Discharged' ? (
-                <>
-                  <Calendar size={14} color="#10B981" style={{ marginRight: 4 }} />
-                  <Text style={[styles.allLocationText, { color: '#10B981', fontWeight: '600' }]}>
-                    Discharged on {item.dateOfDischarge}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Clock size={14} color="#EF4444" style={{ marginRight: 4 }} />
-                  <Text style={[styles.allLocationText, { color: '#EF4444', fontWeight: '600' }]}>
-                    Deceased (ABSCE. Shock)
-                  </Text>
-                </>
-              )}
-            </View>
+            <View style={styles.allPatientMeta}>
+              <View style={styles.nameRow}>
+                <Text style={styles.allName}>{item.fullName}</Text>
+                <Text style={[styles.dateTag, { color: badge.color, backgroundColor: badge.bg }]}>
+                  {badge.label}
+                </Text>
+              </View>
+              <Text style={styles.allSub}>{item.patientId || item.recordID} ({item.age} Y / {item.gender})</Text>
+              
+              <View style={styles.allLocationRow}>
+                {status === 'Admitted' ? (
+                  <>
+                    <Bed size={14} color={theme.colors.textSecondary} style={{ marginRight: 4 }} />
+                    <Text style={styles.allLocationText}>{item.roomType} - Bed {item.bedNo}</Text>
+                  </>
+                ) : status === 'Discharged' ? (
+                  <>
+                    <Calendar size={14} color="#10B981" style={{ marginRight: 4 }} />
+                    <Text style={[styles.allLocationText, { color: '#10B981', fontWeight: '600' }]}>
+                      Discharged on {item.dateOfDischarge}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Clock size={14} color="#EF4444" style={{ marginRight: 4 }} />
+                    <Text style={[styles.allLocationText, { color: '#EF4444', fontWeight: '600' }]}>
+                      Deceased (ABSCE. Shock)
+                    </Text>
+                  </>
+                )}
+              </View>
 
-            {/* Diagnosis Row */}
-            <View style={styles.allDiagnosisRow}>
-              <Stethoscope size={14} color={theme.colors.primary} style={{ marginRight: 6 }} />
-              <Text style={styles.allDiagnosisText} numberOfLines={1}>
-                {item.diagnosis || 'No Diagnosis Recorded'}
-              </Text>
+              {/* Diagnosis Row */}
+              <View style={styles.allDiagnosisRow}>
+                <Stethoscope size={14} color={theme.colors.primary} style={{ marginRight: 6 }} />
+                <Text style={styles.allDiagnosisText} numberOfLines={1}>
+                  {item.diagnosis || 'No Diagnosis Recorded'}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
-      </TouchableOpacity>
+        </AnimatedPressable>
+      </AnimatedMount>
     );
   };
 
@@ -156,16 +195,25 @@ const EMRDashboard = ({ navigation }) => {
           <Text style={styles.docName}>Dr. {userProfile.name}</Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <TouchableOpacity 
+          <AnimatedPressable 
             style={{ padding: 6 }} 
             onPress={() => navigation.navigate('Analytics')}
           >
             <BarChart2 size={24} color={theme.colors.primary} />
-          </TouchableOpacity>
-          <Image 
-            source={{ uri: userProfile.avatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=200&auto=format&fit=crop' }} 
-            style={styles.docAvatar} 
-          />
+          </AnimatedPressable>
+          {userProfile.avatar && !avatarError ? (
+            <Image 
+              source={{ uri: userProfile.avatar }} 
+              style={styles.docAvatar} 
+              onError={() => setAvatarError(true)}
+            />
+          ) : (
+            <View style={[styles.docAvatar, styles.avatarFallback]}>
+              <Text style={styles.avatarFallbackText}>
+                {userProfile.name ? userProfile.name.charAt(0) : 'D'}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -181,29 +229,27 @@ const EMRDashboard = ({ navigation }) => {
           <>
             {/* Consultation Cards Grid */}
             <View style={styles.consultGrid}>
-              <TouchableOpacity 
+              <AnimatedPressable 
                 style={[styles.consultCard, { backgroundColor: '#EFF6FF', borderColor: '#DBEAFE' }]}
                 onPress={() => navigation.navigate('OPDScheduling')}
-                activeOpacity={0.8}
               >
                 <View style={[styles.consultIconBox, { backgroundColor: '#3B82F6' }]}>
                   <Users size={20} color="#FFF" />
                 </View>
                 <Text style={styles.consultTitle}>General Consultation</Text>
                 <Text style={styles.consultDesc}>Schedule and view general outpatient OPD consults.</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
 
-              <TouchableOpacity 
+              <AnimatedPressable 
                 style={[styles.consultCard, { backgroundColor: '#F0FDF4', borderColor: '#DCFCE7' }]}
                 onPress={() => navigation.navigate('OPDScheduling')}
-                activeOpacity={0.8}
               >
                 <View style={[styles.consultIconBox, { backgroundColor: '#22C55E' }]}>
                   <ClipboardList size={20} color="#FFF" />
                 </View>
                 <Text style={styles.consultTitle}>EHS Consultation</Text>
                 <Text style={styles.consultDesc}>Extended hospital service outpatient consults.</Text>
-              </TouchableOpacity>
+              </AnimatedPressable>
             </View>
 
             {/* Search Bar */}
@@ -216,24 +262,38 @@ const EMRDashboard = ({ navigation }) => {
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
+              {searchQuery.length > 0 && (
+                <AnimatedPressable 
+                  onPress={() => setSearchQuery('')} 
+                  style={{ padding: 4 }}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityLabel="Clear search"
+                  accessibilityRole="button"
+                >
+                  <X size={18} color={theme.colors.textSecondary} />
+                </AnimatedPressable>
+              )}
             </View>
 
             {/* Admitted Patients Section (Only active inpatients) */}
-            {admittedPatients.length > 0 && (
+            {(admittedPatients.length > 0 || isLoading) && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionTitle}>Active Inpatients ({admittedPatients.length})</Text>
-                  <TouchableOpacity onPress={() => setActiveTab('Admitted')}>
+                  <AnimatedPressable onPress={() => setActiveTab('Admitted')}>
                     <Text style={styles.viewAllText}>View list</Text>
-                  </TouchableOpacity>
+                  </AnimatedPressable>
                 </View>
                 <FlatList
-                  data={admittedPatients}
+                  data={isLoading ? [1, 2] : admittedPatients}
                   horizontal
                   showsHorizontalScrollIndicator={false}
-                  keyExtractor={(item) => 'adm_' + item.recordID}
-                  renderItem={renderAdmittedPatient}
+                  keyExtractor={(item, index) => isLoading ? `skeleton_adm_${index}` : 'adm_' + item.recordID}
+                  renderItem={isLoading ? () => <SkeletonLoader variant="card" style={{ width: 280, marginRight: 12 }} /> : renderAdmittedPatient}
                   contentContainerStyle={styles.horizontalList}
+                  snapToInterval={292}
+                  decelerationRate="fast"
+                  snapToAlignment="start"
                 />
               </View>
             )}
@@ -244,7 +304,8 @@ const EMRDashboard = ({ navigation }) => {
             </View>
             
             <View style={styles.segmentedContainer}>
-              {['Admitted', 'Discharged', 'Deceased'].map((tab) => {
+              <Animated.View style={[styles.segmentedIndicator, animatedIndicatorStyle]} />
+              {['Admitted', 'Discharged', 'Deceased'].map((tab, idx) => {
                 const count = filteredPatients.filter(p => {
                   const status = p.status || (p.dateOfDischarge ? 'Discharged' : 'Admitted');
                   return status.toLowerCase() === tab.toLowerCase();
@@ -253,8 +314,9 @@ const EMRDashboard = ({ navigation }) => {
                 return (
                   <TouchableOpacity
                     key={tab}
-                    style={[styles.segmentedTab, activeTab === tab && styles.segmentedTabActive]}
-                    onPress={() => setActiveTab(tab)}
+                    style={styles.segmentedTab}
+                    onPress={() => handleTabPress(tab, idx)}
+                    activeOpacity={0.8}
                   >
                     <Text style={[styles.segmentedTabText, activeTab === tab && styles.segmentedTabTextActive]}>
                       {tab} ({count})
@@ -265,88 +327,90 @@ const EMRDashboard = ({ navigation }) => {
             </View>
           </>
         }
-        renderItem={renderAllPatient}
+        renderItem={isLoading ? () => <SkeletonLoader variant="card" style={{ marginHorizontal: theme.spacing.lg, marginBottom: theme.spacing.sm }} /> : ({ item, index }) => renderAllPatient({ item, index })}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No Patient Records Found</Text>
-            <Text style={styles.emptySubtitle}>Try searching with a different name or add a new record.</Text>
-          </View>
+          <EmptyState 
+            icon={Users}
+            title="No Patient Records Found"
+            description="Try searching with a different name or add a new record."
+            actionLabel="Add Patient Record"
+            onAction={() => navigation.navigate('AddPatient')}
+          />
         }
       />
 
       {/* Floating Add Patient Button */}
-      <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => navigation.navigate('AddPatient')}
-        activeOpacity={0.85}
-      >
-        <Plus size={24} color="#FFF" />
-      </TouchableOpacity>
+      <Animated.View entering={ZoomIn.delay(400).duration(400)} style={{ position: 'absolute', bottom: 24, right: 24 }}>
+        <AnimatedPressable 
+          style={styles.fab} 
+          onPress={() => navigation.navigate('AddPatient')}
+          accessibilityLabel="Add new patient"
+          accessibilityRole="button"
+        >
+          <Plus size={24} color="#FFF" />
+        </AnimatedPressable>
+      </Animated.View>
 
       {/* Quick Action Modal (Long Press) */}
-      <Modal visible={!!quickActionPatient} transparent animationType="fade">
-        <TouchableOpacity style={styles.quickActionOverlay} activeOpacity={1} onPress={() => setQuickActionPatient(null)}>
-          <View style={styles.quickActionSheet}>
-            <View style={styles.quickActionHeader}>
-              <Text style={styles.quickActionTitle}>{quickActionPatient?.fullName}</Text>
-              <TouchableOpacity onPress={() => setQuickActionPatient(null)}>
-                <X size={20} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
+      <BottomSheet
+        visible={!!quickActionPatient}
+        onClose={() => setQuickActionPatient(null)}
+        title={quickActionPatient?.fullName || 'Quick Actions'}
+        height="40%"
+      >
+        <View style={{ paddingTop: theme.spacing.xs }}>
+          <AnimatedPressable
+            style={styles.quickActionItem}
+            onPress={() => {
+              const p = quickActionPatient;
+              setQuickActionPatient(null);
+              navigation.navigate('VitalsScreen', { patientId: p.recordID });
+            }}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: '#EFF6FF' }]}>
+              <Activity size={18} color="#3B82F6" />
             </View>
+            <View>
+              <Text style={styles.quickActionLabel}>Add Vitals</Text>
+              <Text style={styles.quickActionDesc}>Record BP, HR, Temp, SpO2</Text>
+            </View>
+          </AnimatedPressable>
 
-            <TouchableOpacity
-              style={styles.quickActionItem}
-              onPress={() => {
-                const p = quickActionPatient;
-                setQuickActionPatient(null);
-                navigation.navigate('VitalsScreen', { patientId: p.recordID });
-              }}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: '#EFF6FF' }]}>
-                <Activity size={18} color="#3B82F6" />
-              </View>
-              <View>
-                <Text style={styles.quickActionLabel}>Add Vitals</Text>
-                <Text style={styles.quickActionDesc}>Record BP, HR, Temp, SpO2</Text>
-              </View>
-            </TouchableOpacity>
+          <AnimatedPressable
+            style={styles.quickActionItem}
+            onPress={() => {
+              const p = quickActionPatient;
+              setQuickActionPatient(null);
+              navigation.navigate('PatientDetail', { patient: p });
+            }}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: '#FFF7ED' }]}>
+              <FileText size={18} color="#F97316" />
+            </View>
+            <View>
+              <Text style={styles.quickActionLabel}>Add Progress Note</Text>
+              <Text style={styles.quickActionDesc}>Clinical, Consultant, or Nurse log</Text>
+            </View>
+          </AnimatedPressable>
 
-            <TouchableOpacity
-              style={styles.quickActionItem}
-              onPress={() => {
-                const p = quickActionPatient;
-                setQuickActionPatient(null);
-                navigation.navigate('PatientDetail', { patient: p });
-              }}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: '#FFF7ED' }]}>
-                <FileText size={18} color="#F97316" />
-              </View>
-              <View>
-                <Text style={styles.quickActionLabel}>Add Progress Note</Text>
-                <Text style={styles.quickActionDesc}>Clinical, Consultant, or Nurse log</Text>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.quickActionItem, { borderBottomWidth: 0 }]}
-              onPress={() => {
-                const p = quickActionPatient;
-                setQuickActionPatient(null);
-                navigation.navigate('PatientDetail', { patient: p });
-              }}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: '#F0FDF4' }]}>
-                <MessageCircle size={18} color="#22C55E" />
-              </View>
-              <View>
-                <Text style={styles.quickActionLabel}>View Detail</Text>
-                <Text style={styles.quickActionDesc}>Full patient record</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </Modal>
+          <AnimatedPressable
+            style={[styles.quickActionItem, { borderBottomWidth: 0 }]}
+            onPress={() => {
+              const p = quickActionPatient;
+              setQuickActionPatient(null);
+              navigation.navigate('PatientDetail', { patient: p });
+            }}
+          >
+            <View style={[styles.quickActionIcon, { backgroundColor: '#F0FDF4' }]}>
+              <MessageCircle size={18} color="#22C55E" />
+            </View>
+            <View>
+              <Text style={styles.quickActionLabel}>View Detail</Text>
+              <Text style={styles.quickActionDesc}>Full patient record</Text>
+            </View>
+          </AnimatedPressable>
+        </View>
+      </BottomSheet>
     </ClinicalCanvas>
   );
 };
@@ -354,7 +418,7 @@ const EMRDashboard = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -365,7 +429,7 @@ const styles = StyleSheet.create({
     paddingBottom: theme.spacing.md,
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: theme.colors.border,
   },
   greetingText: {
     ...theme.typography.bodySmall,
@@ -431,7 +495,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     marginHorizontal: theme.spacing.lg,
     marginVertical: theme.spacing.lg,
     paddingHorizontal: theme.spacing.md,
@@ -561,7 +625,7 @@ const styles = StyleSheet.create({
     marginHorizontal: theme.spacing.lg,
     marginBottom: theme.spacing.sm,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.02,
@@ -653,7 +717,7 @@ const styles = StyleSheet.create({
   },
   segmentedContainer: {
     flexDirection: 'row',
-    backgroundColor: '#EFF1F3',
+    backgroundColor: theme.colors.surfaceDim,
     borderRadius: theme.borderRadius.lg,
     padding: 4,
     marginHorizontal: theme.spacing.lg,
@@ -727,7 +791,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: theme.colors.borderLight,
   },
   quickActionIcon: {
     width: 40,
@@ -752,7 +816,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 6,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.surfaceDim,
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: theme.borderRadius.sm,
@@ -762,6 +826,49 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontWeight: '600',
     flex: 1,
+  },
+  avatarFallback: {
+    backgroundColor: theme.colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarFallbackText: {
+    color: theme.colors.primary,
+    fontSize: 16,
+    fontWeight: '800',
+    fontFamily: theme.typography.fontFamily,
+  },
+  segmentedIndicator: {
+    position: 'absolute',
+    top: 4,
+    bottom: 4,
+    width: '32%',
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  emptyCTA: {
+    marginTop: theme.spacing.lg,
+    backgroundColor: theme.colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: theme.borderRadius.lg,
+  },
+  emptyCTAText: {
+    color: '#FFF',
+    fontSize: 13,
+    fontWeight: '700',
+    fontFamily: theme.typography.fontFamily,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing.xxl,
+    marginTop: theme.spacing.xl,
   },
 });
 

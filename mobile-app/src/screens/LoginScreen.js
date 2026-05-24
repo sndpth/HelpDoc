@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Modal } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Modal, ActivityIndicator } from 'react-native';
 import { Stethoscope, Eye, EyeOff, Lock, User, Settings, Globe, X } from 'lucide-react-native';
+import Animated, { FadeIn, ZoomIn, SlideInDown, useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
+import AnimatedPressable from '../components/AnimatedPressable';
+import BottomSheet from '../components/BottomSheet';
 import useStore from '../store/useStore';
 import { theme } from '../constants/theme';
 import ClinicalCanvas from '../components/ClinicalCanvas';
@@ -16,8 +19,34 @@ const LoginScreen = () => {
   const [role, setRole] = useState('DOCTOR'); // 'DOCTOR' | 'NURSE'
 
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setRawError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const shakeOffset = useSharedValue(0);
+
+  const triggerShake = () => {
+    shakeOffset.value = 0;
+    shakeOffset.value = withSequence(
+      withTiming(-10, { duration: 50 }),
+      withTiming(10, { duration: 50 }),
+      withTiming(-10, { duration: 50 }),
+      withTiming(10, { duration: 50 }),
+      withTiming(0, { duration: 50 })
+    );
+  };
+
+  const setError = (msg) => {
+    setRawError(msg);
+    if (msg) {
+      triggerShake();
+    }
+  };
+
+  const shakeStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: shakeOffset.value }],
+    };
+  });
 
   // Server settings state
   const [showSettings, setShowSettings] = useState(false);
@@ -74,16 +103,17 @@ const LoginScreen = () => {
       
       {/* Absolute settings gear button */}
       <View style={styles.headerActions}>
-        <TouchableOpacity 
+        <AnimatedPressable 
           style={styles.settingsIconBtn} 
           onPress={() => {
             setInputUrl(apiUrl);
             setShowSettings(true);
           }}
-          activeOpacity={0.8}
+          accessibilityLabel="Server connection settings"
+          accessibilityRole="button"
         >
           <Settings size={20} color={theme.colors.textSecondary} />
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
 
       <KeyboardAvoidingView 
@@ -94,23 +124,27 @@ const LoginScreen = () => {
           
           {/* Logo & Header */}
           <View style={styles.logoSection}>
-            <View style={styles.logoRing}>
+            <Animated.View entering={ZoomIn.duration(500).delay(100)} style={styles.logoRing}>
               <View style={styles.logoInner}>
                 <Stethoscope size={36} color={theme.colors.surface} />
               </View>
-            </View>
-            <Text style={styles.brandName}>HelpDoc</Text>
-            <Text style={styles.tagline}>Clinical Intelligence & EMR Suite</Text>
+            </Animated.View>
+            <Animated.Text entering={FadeIn.duration(400).delay(300)} style={styles.brandName}>HelpDoc</Animated.Text>
+            <Animated.Text entering={FadeIn.duration(400).delay(450)} style={styles.tagline}>Clinical Intelligence & EMR Suite</Animated.Text>
           </View>
 
           {/* Form Card */}
-          <View style={styles.formCard}>
+          <Animated.View entering={SlideInDown.duration(600).springify().damping(15)} style={styles.formCard}>
             <Text style={styles.welcomeText}>{isRegister ? 'Create Account' : 'Welcome'}</Text>
             <Text style={styles.signInText}>
               {isRegister ? 'Register as a new clinical practitioner' : 'Sign in to your practitioner account'}
             </Text>
 
-            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {error ? (
+              <Animated.View style={shakeStyle}>
+                <Text style={styles.errorText}>{error}</Text>
+              </Animated.View>
+            ) : null}
 
             {/* Registration Fields */}
             {isRegister && (
@@ -144,42 +178,38 @@ const LoginScreen = () => {
                 </View>
 
                 {/* Role Toggle Selector */}
-                <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.textSecondary, marginBottom: 8, textTransform: 'uppercase' }}>
+                <Text style={styles.roleLabel}>
                   Practitioner Role
                 </Text>
-                <View style={{ flexDirection: 'row', gap: 10, marginBottom: theme.spacing.md }}>
-                  <TouchableOpacity 
-                    style={{
-                      flex: 1,
-                      paddingVertical: 12,
-                      alignItems: 'center',
-                      borderRadius: theme.borderRadius.md,
-                      backgroundColor: role === 'DOCTOR' ? theme.colors.primary : '#F1F5F9',
-                      borderWidth: 1,
-                      borderColor: role === 'DOCTOR' ? theme.colors.primary : '#E2E8F0',
-                    }}
+                <View style={styles.roleToggleRow}>
+                  <AnimatedPressable 
+                    style={[
+                      styles.roleButton, 
+                      role === 'DOCTOR' ? styles.roleButtonActive : styles.roleButtonInactive
+                    ]}
                     onPress={() => setRole('DOCTOR')}
                   >
-                    <Text style={{ color: role === 'DOCTOR' ? '#FFF' : theme.colors.textSecondary, fontWeight: '700', fontSize: 13 }}>
+                    <Text style={[
+                      styles.roleButtonText, 
+                      role === 'DOCTOR' ? styles.roleButtonTextActive : styles.roleButtonTextInactive
+                    ]}>
                       Doctor
                     </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={{
-                      flex: 1,
-                      paddingVertical: 12,
-                      alignItems: 'center',
-                      borderRadius: theme.borderRadius.md,
-                      backgroundColor: role === 'NURSE' ? theme.colors.primary : '#F1F5F9',
-                      borderWidth: 1,
-                      borderColor: role === 'NURSE' ? theme.colors.primary : '#E2E8F0',
-                    }}
+                  </AnimatedPressable>
+                  <AnimatedPressable 
+                    style={[
+                      styles.roleButton, 
+                      role === 'NURSE' ? styles.roleButtonActive : styles.roleButtonInactive
+                    ]}
                     onPress={() => setRole('NURSE')}
                   >
-                    <Text style={{ color: role === 'NURSE' ? '#FFF' : theme.colors.textSecondary, fontWeight: '700', fontSize: 13 }}>
+                    <Text style={[
+                      styles.roleButtonText, 
+                      role === 'NURSE' ? styles.roleButtonTextActive : styles.roleButtonTextInactive
+                    ]}>
                       Nurse
                     </Text>
-                  </TouchableOpacity>
+                  </AnimatedPressable>
                 </View>
               </>
             )}
@@ -217,6 +247,9 @@ const LoginScreen = () => {
               <TouchableOpacity 
                 style={styles.eyeBtn} 
                 onPress={() => setShowPassword(!showPassword)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="Toggle password visibility"
+                accessibilityRole="button"
               >
                 {showPassword ? (
                   <EyeOff size={18} color={theme.colors.textSecondary} />
@@ -227,22 +260,25 @@ const LoginScreen = () => {
             </View>
 
             {/* Submit Button */}
-            <TouchableOpacity 
+            <AnimatedPressable 
               style={[styles.loginBtn, loading && { backgroundColor: theme.colors.textSecondary }]} 
               onPress={handleSubmit} 
-              activeOpacity={0.85}
               disabled={loading}
             >
-              <Text style={styles.loginBtnText}>{loading ? 'Processing...' : (isRegister ? 'Register' : 'Login')}</Text>
-            </TouchableOpacity>
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFF" />
+              ) : (
+                <Text style={styles.loginBtnText}>{isRegister ? 'Register' : 'Login'}</Text>
+              )}
+            </AnimatedPressable>
 
             {/* Screen Toggle Button */}
-            <TouchableOpacity style={styles.forgotBtn} onPress={() => { setIsRegister(!isRegister); setError(''); }}>
+            <AnimatedPressable style={styles.forgotBtn} onPress={() => { setIsRegister(!isRegister); setError(''); }}>
               <Text style={styles.forgotBtnText}>
                 {isRegister ? 'Already have an account? Sign In' : "Don't have an account? Register"}
               </Text>
-            </TouchableOpacity>
-          </View>
+            </AnimatedPressable>
+          </Animated.View>
 
           {/* Info Section */}
           <View style={styles.helperSection}>
@@ -256,54 +292,48 @@ const LoginScreen = () => {
       </KeyboardAvoidingView>
 
       {/* Settings Modal */}
-      <Modal visible={showSettings} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Server Connection Settings</Text>
-              <TouchableOpacity onPress={() => setShowSettings(false)}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
+      <BottomSheet
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+        title="Server Connection Settings"
+        height="50%"
+      >
+        <View style={styles.modalBody}>
+          <Text style={styles.fieldLabel}>Server Base URL</Text>
+          <View style={styles.settingsInputWrapper}>
+            <View style={styles.inputIconBox}>
+              <Globe size={18} color={theme.colors.primary} />
             </View>
-            
-            <View style={styles.modalBody}>
-              <Text style={styles.fieldLabel}>Server Base URL</Text>
-              <View style={styles.settingsInputWrapper}>
-                <View style={styles.inputIconBox}>
-                  <Globe size={18} color={theme.colors.primary} />
-                </View>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. http://192.168.1.15:3000"
-                  placeholderTextColor={theme.colors.textSecondary}
-                  value={inputUrl}
-                  onChangeText={setInputUrl}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-              <Text style={styles.infoNote}>
-                Enter the IP address of the computer running your backend server (e.g. <Text style={{ fontWeight: '700' }}>http://192.168.1.X:3000</Text>).
-              </Text>
-              
-              <View style={styles.modalBtnRow}>
-                <TouchableOpacity 
-                  style={styles.modalCancelBtn} 
-                  onPress={() => setShowSettings(false)}
-                >
-                  <Text style={styles.modalCancelBtnText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.modalSaveBtn} 
-                  onPress={handleSaveSettings}
-                >
-                  <Text style={styles.modalSaveBtnText}>Save Settings</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. http://192.168.1.15:3000"
+              placeholderTextColor={theme.colors.textSecondary}
+              value={inputUrl}
+              onChangeText={setInputUrl}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+          <Text style={styles.infoNote}>
+            Enter the IP address of the computer running your backend server (e.g. <Text style={{ fontWeight: '700' }}>http://192.168.1.X:3000</Text>).
+          </Text>
+          
+          <View style={styles.modalBtnRow}>
+            <AnimatedPressable 
+              style={styles.modalCancelBtn} 
+              onPress={() => setShowSettings(false)}
+            >
+              <Text style={styles.modalCancelBtnText}>Cancel</Text>
+            </AnimatedPressable>
+            <AnimatedPressable 
+              style={styles.modalSaveBtn} 
+              onPress={handleSaveSettings}
+            >
+              <Text style={styles.modalSaveBtnText}>Save Settings</Text>
+            </AnimatedPressable>
           </View>
         </View>
-      </Modal>
+      </BottomSheet>
     </ClinicalCanvas>
   );
 };
@@ -311,7 +341,7 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
   },
   keyboardView: {
     flex: 1,
@@ -326,9 +356,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFF',
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
@@ -388,12 +418,51 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.xxl,
     padding: theme.spacing.xl,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     shadowColor: '#004080',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.04,
     shadowRadius: 20,
     elevation: 5,
+  },
+  roleLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: theme.colors.textSecondary,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    fontFamily: theme.typography.fontFamily,
+  },
+  roleToggleRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: theme.spacing.md,
+  },
+  roleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+  },
+  roleButtonActive: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  roleButtonInactive: {
+    backgroundColor: theme.colors.surfaceDim,
+    borderColor: theme.colors.border,
+  },
+  roleButtonText: {
+    fontWeight: '700',
+    fontSize: 13,
+    fontFamily: theme.typography.fontFamily,
+  },
+  roleButtonTextActive: {
+    color: '#FFF',
+  },
+  roleButtonTextInactive: {
+    color: theme.colors.textSecondary,
   },
   welcomeText: {
     ...theme.typography.h1,
@@ -416,10 +485,10 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     marginBottom: theme.spacing.md,
     paddingHorizontal: theme.spacing.md,
     height: 52,
@@ -427,10 +496,10 @@ const styles = StyleSheet.create({
   settingsInputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
+    backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     marginBottom: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
     height: 52,
@@ -444,6 +513,7 @@ const styles = StyleSheet.create({
     color: theme.colors.textPrimary,
     fontSize: 14,
     fontWeight: '500',
+    fontFamily: theme.typography.fontFamily,
   },
   eyeBtn: {
     padding: theme.spacing.xs,
@@ -465,6 +535,7 @@ const styles = StyleSheet.create({
     color: theme.colors.surface,
     fontSize: 16,
     fontWeight: '700',
+    fontFamily: theme.typography.fontFamily,
   },
   forgotBtn: {
     alignItems: 'center',
@@ -474,14 +545,15 @@ const styles = StyleSheet.create({
     ...theme.typography.bodySmall,
     color: theme.colors.primary,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily,
   },
   helperSection: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.surfaceDim,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.md,
     marginTop: theme.spacing.xl,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     alignItems: 'center',
   },
   helperTitle: {
@@ -490,10 +562,12 @@ const styles = StyleSheet.create({
     color: theme.colors.textSecondary,
     textTransform: 'uppercase',
     marginBottom: 4,
+    fontFamily: theme.typography.fontFamily,
   },
   helperText: {
     fontSize: 12,
     color: theme.colors.textPrimary,
+    fontFamily: theme.typography.fontFamily,
   },
   boldText: {
     fontWeight: '700',
@@ -502,13 +576,13 @@ const styles = StyleSheet.create({
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.60)',
+    backgroundColor: theme.colors.overlay,
     justifyContent: 'center',
     alignItems: 'center',
     padding: theme.spacing.xl,
   },
   modalContent: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
     borderRadius: theme.borderRadius.xxl,
     width: '100%',
     maxHeight: '90%',
@@ -518,7 +592,7 @@ const styles = StyleSheet.create({
     shadowRadius: 30,
     elevation: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -526,8 +600,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: theme.spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    backgroundColor: '#FFF',
+    borderBottomColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: theme.borderRadius.xxl,
     borderTopRightRadius: theme.borderRadius.xxl,
   },
@@ -563,15 +637,16 @@ const styles = StyleSheet.create({
     height: 48,
     borderRadius: theme.borderRadius.lg,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#FFF',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalCancelBtnText: {
-    color: '#475569',
+    color: theme.colors.textSecondary,
     fontSize: 14,
     fontWeight: '600',
+    fontFamily: theme.typography.fontFamily,
   },
   modalSaveBtn: {
     flex: 1,
@@ -582,9 +657,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalSaveBtnText: {
-    color: '#FFF',
+    color: theme.colors.surface,
     fontSize: 14,
     fontWeight: '700',
+    fontFamily: theme.typography.fontFamily,
   },
 });
 

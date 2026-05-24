@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Dimensions, StyleSheet, Text } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
+import AnimatedMount from './AnimatedMount';
 import { theme } from '../constants/theme';
 
 const VitalsChart = ({ data }) => {
@@ -36,9 +37,10 @@ const VitalsChart = ({ data }) => {
   };
 
   return (
-    <View style={styles.container} key={data.length}>
-      <Text style={styles.title}>Vitals Trend (Last 6 Readings)</Text>
-      <LineChart
+    <AnimatedMount slide>
+      <View style={styles.container} key={data.length}>
+        <Text style={styles.title}>Vitals Trend (Last 6 Readings)</Text>
+        <LineChart
         data={chartData}
         width={Dimensions.get('window').width - 40}
         height={220}
@@ -58,7 +60,8 @@ const VitalsChart = ({ data }) => {
         fromZero
         verticalLabelRotation={30}
       />
-    </View>
+      </View>
+    </AnimatedMount>
   );
 };
 

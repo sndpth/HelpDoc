@@ -1,16 +1,21 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { FolderHeart, Stethoscope } from 'lucide-react-native';
+import AnimatedPressable from './AnimatedPressable';
 import { theme } from '../constants/theme';
 
 const EMRCard = ({ patient, onPress, style }) => {
   if (!patient) return null;
 
+  const status = patient.status || (patient.dateOfDischarge ? 'Discharged' : 'Admitted');
+  let accentColor = theme.colors.primary;
+  if (status === 'Discharged') accentColor = '#10B981';
+  if (status === 'Deceased') accentColor = '#EF4444';
+
   return (
-    <TouchableOpacity 
-      style={[styles.card, style]} 
+    <AnimatedPressable 
+      style={[styles.card, { borderLeftWidth: 4, borderLeftColor: accentColor }, style]} 
       onPress={() => onPress && onPress(patient)}
-      activeOpacity={0.8}
     >
       <View style={styles.header}>
         <View style={styles.titleRow}>
@@ -54,7 +59,7 @@ const EMRCard = ({ patient, onPress, style }) => {
           </View>
         </View>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 };
 

@@ -1,12 +1,179 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, StatusBar, Platform } from 'react-native';
 import { ChevronLeft, Plus, X, Heart, Thermometer, Activity, Wind, Info, Calendar, Clock, AlertCircle } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import Animated, { FadeIn, ZoomIn, SlideInDown, useSharedValue, useAnimatedStyle, useAnimatedProps, withTiming } from 'react-native-reanimated';
+import AnimatedPressable from '../components/AnimatedPressable';
+import AnimatedMount from '../components/AnimatedMount';
+import BottomSheet from '../components/BottomSheet';
 import { theme } from '../constants/theme';
 import ClinicalCanvas from '../components/ClinicalCanvas';
 import VitalsChart from '../components/VitalsChart';
 import useStore from '../store/useStore';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+const BpGauge = ({ latestReading, progress }) => {
+  const size = 150;
+  const strokeWidth = 12;
+  const center = size / 2;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+
+  const sysVal = latestReading ? latestReading.bpSystolic : 120;
+  const diaVal = latestReading ? latestReading.bpDiastolic : 80;
+  
+  const sysPercent = Math.min(sysVal / 200, 1);
+  const diaPercent = Math.min(diaVal / 120, 1);
+
+  const sysProps = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - (sysPercent * progress.value)),
+  }));
+
+  const diaProps = useAnimatedProps(() => ({
+    strokeDashoffset: (radius - 18) * 2 * Math.PI * (1 - (diaPercent * progress.value)),
+  }));
+
+  return (
+    <View style={styles.gaugeContainer}>
+      <Svg width={size} height={size}>
+        {/* Outer Ring (Systolic) Background */}
+        <Circle
+          cx={center}
+          cy={center}
+          r={radius}
+          stroke="#E2E8F0"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        {/* Outer Ring (Systolic) Progress */}
+        <AnimatedCircle
+          cx={center}
+          cy={center}
+          r={radius}
+          stroke="#10B981" // Green
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          animatedProps={sysProps}
+          strokeLinecap="round"
+          fill="none"
+          transform={`rotate(-90 ${center} ${center})`}
+        />
+        {/* Inner Ring (Diastolic) Background */}
+        <Circle
+          cx={center}
+          cy={center}
+          r={radius - 18}
+          stroke="#E2E8F0"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        {/* Inner Ring (Diastolic) Progress */}
+        <AnimatedCircle
+          cx={center}
+          cy={center}
+          r={radius - 18}
+          stroke="#3B82F6" // Blue
+          strokeWidth={strokeWidth}
+          strokeDasharray={(radius - 18) * 2 * Math.PI}
+          animatedProps={diaProps}
+          strokeLinecap="round"
+          fill="none"
+          transform={`rotate(-90 ${center} ${center})`}
+        />
+      </Svg>
+      <View style={styles.gaugeCenterLabel}>
+        <Text style={styles.gaugeMainValue}>{sysVal}/{diaVal}</Text>
+        <Text style={styles.gaugeUnit}>mmHg</Text>
+      </View>
+    </View>
+  );
+};
+
+const SingleGauge = ({ activeCategory, latestReading, progress }) => {
+  const size = 150;
+  const strokeWidth = 12;
+  const center = size / 2;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+
+  let progressColor = theme.colors.primary;
+  let maxVal = 100;
+  let currentVal = 0;
+  let unit = '';
+
+  if (activeCategory === 'T') {
+    progressColor = '#F97316'; // Orange
+    maxVal = 42;
+    currentVal = latestReading ? latestReading.temp : 37.0;
+    unit = '°C';
+  } else if (activeCategory === 'HR') {
+    progressColor = '#EF4444'; // Red
+    maxVal = 180;
+    currentVal = latestReading ? latestReading.hr : 75;
+    unit = 'bpm';
+  } else if (activeCategory === 'RR') {
+    progressColor = '#06B6D4'; // Cyan
+    maxVal = 40;
+    currentVal = latestReading ? (latestReading.rr || 16) : 16;
+    unit = 'bpm';
+  } else if (activeCategory === 'SpO2') {
+    progressColor = '#3B82F6'; // Blue
+    maxVal = 100;
+    currentVal = latestReading ? (latestReading.spo2 || 98) : 98;
+    unit = '%';
+  } else if (activeCategory === 'Su') {
+    progressColor = '#8B5CF6'; // Purple
+    maxVal = 300;
+    currentVal = latestReading ? (latestReading.sugar || 100) : 100;
+    unit = 'mg/dL';
+  }
+
+  const valPercent = Math.min(currentVal / maxVal, 1);
+
+  const valProps = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - (valPercent * progress.value)),
+  }));
+
+  return (
+    <View style={styles.gaugeContainer}>
+      <Svg width={size} height={size}>
+        <Circle
+          cx={center}
+          cy={center}
+          r={radius}
+          stroke="#E2E8F0"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <AnimatedCircle
+          cx={center}
+          cy={center}
+          r={radius}
+          stroke={progressColor}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          animatedProps={valProps}
+          strokeLinecap="round"
+          fill="none"
+          transform={`rotate(-90 ${center} ${center})`}
+        />
+      </Svg>
+      <View style={styles.gaugeCenterLabel}>
+        <Text style={styles.gaugeMainValue}>{currentVal}</Text>
+        <Text style={styles.gaugeUnit}>{unit}</Text>
+      </View>
+    </View>
+  );
+};
+
+const VisualGauge = ({ activeCategory, latestReading, progress }) => {
+  if (activeCategory === 'Bp') {
+    return <BpGauge latestReading={latestReading} progress={progress} />;
+  }
+  return <SingleGauge activeCategory={activeCategory} latestReading={latestReading} progress={progress} />;
+};
 
 const VITAL_TYPES = {
   BP: 'Bp',
@@ -28,6 +195,13 @@ const VitalsScreen = ({ route, navigation }) => {
   const [activeCategory, setActiveCategory] = useState(VITAL_TYPES.BP);
   const [showChart, setShowChart] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+
+  const progress = useSharedValue(0);
+
+  useEffect(() => {
+    progress.value = 0;
+    progress.value = withTiming(1, { duration: 800 });
+  }, [activeCategory]);
   
   // Date/Time pickers for Modal
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -119,142 +293,7 @@ const VitalsScreen = ({ route, navigation }) => {
     return theme.colors.danger;
   };
 
-  const renderVisualGauge = () => {
-    const size = 150;
-    const strokeWidth = 12;
-    const center = size / 2;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = radius * 2 * Math.PI;
-
-    if (activeCategory === VITAL_TYPES.BP) {
-      const sysVal = latestReading ? latestReading.bpSystolic : 120;
-      const diaVal = latestReading ? latestReading.bpDiastolic : 80;
-      
-      const sysPercent = Math.min(sysVal / 200, 1);
-      const diaPercent = Math.min(diaVal / 120, 1);
-
-      return (
-        <View style={styles.gaugeContainer}>
-          <Svg width={size} height={size}>
-            {/* Outer Ring (Systolic) Background */}
-            <Circle
-              cx={center}
-              cy={center}
-              r={radius}
-              stroke="#E2E8F0"
-              strokeWidth={strokeWidth}
-              fill="none"
-            />
-            {/* Outer Ring (Systolic) Progress */}
-            <Circle
-              cx={center}
-              cy={center}
-              r={radius}
-              stroke="#10B981" // Green
-              strokeWidth={strokeWidth}
-              strokeDasharray={circumference}
-              strokeDashoffset={circumference * (1 - sysPercent)}
-              strokeLinecap="round"
-              fill="none"
-              transform={`rotate(-90 ${center} ${center})`}
-            />
-            {/* Inner Ring (Diastolic) Background */}
-            <Circle
-              cx={center}
-              cy={center}
-              r={radius - 18}
-              stroke="#E2E8F0"
-              strokeWidth={strokeWidth}
-              fill="none"
-            />
-            {/* Inner Ring (Diastolic) Progress */}
-            <Circle
-              cx={center}
-              cy={center}
-              r={radius - 18}
-              stroke="#3B82F6" // Blue
-              strokeWidth={strokeWidth}
-              strokeDasharray={(radius - 18) * 2 * Math.PI}
-              strokeDashoffset={(radius - 18) * 2 * Math.PI * (1 - diaPercent)}
-              strokeLinecap="round"
-              fill="none"
-              transform={`rotate(-90 ${center} ${center})`}
-            />
-          </Svg>
-          <View style={styles.gaugeCenterLabel}>
-            <Text style={styles.gaugeMainValue}>{sysVal}/{diaVal}</Text>
-            <Text style={styles.gaugeUnit}>mmHg</Text>
-          </View>
-        </View>
-      );
-    }
-
-    // Single Ring for other vitals
-    let progressColor = theme.colors.primary;
-    let maxVal = 100;
-    let currentVal = 0;
-    let unit = '';
-
-    if (activeCategory === VITAL_TYPES.TEMP) {
-      progressColor = '#F97316'; // Orange
-      maxVal = 42;
-      currentVal = latestReading ? latestReading.temp : 37.0;
-      unit = '°C';
-    } else if (activeCategory === VITAL_TYPES.HR) {
-      progressColor = '#EF4444'; // Red
-      maxVal = 180;
-      currentVal = latestReading ? latestReading.hr : 75;
-      unit = 'bpm';
-    } else if (activeCategory === VITAL_TYPES.RR) {
-      progressColor = '#06B6D4'; // Cyan
-      maxVal = 40;
-      currentVal = latestReading ? (latestReading.rr || 16) : 16;
-      unit = 'bpm';
-    } else if (activeCategory === VITAL_TYPES.SPO2) {
-      progressColor = '#3B82F6'; // Blue
-      maxVal = 100;
-      currentVal = latestReading ? (latestReading.spo2 || 98) : 98;
-      unit = '%';
-    } else if (activeCategory === VITAL_TYPES.SUGAR) {
-      progressColor = '#8B5CF6'; // Purple
-      maxVal = 300;
-      currentVal = latestReading ? (latestReading.sugar || 100) : 100;
-      unit = 'mg/dL';
-    }
-
-    const valPercent = Math.min(currentVal / maxVal, 1);
-
-    return (
-      <View style={styles.gaugeContainer}>
-        <Svg width={size} height={size}>
-          <Circle
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke="#E2E8F0"
-            strokeWidth={strokeWidth}
-            fill="none"
-          />
-          <Circle
-            cx={center}
-            cy={center}
-            r={radius}
-            stroke={progressColor}
-            strokeWidth={strokeWidth}
-            strokeDasharray={circumference}
-            strokeDashoffset={circumference * (1 - valPercent)}
-            strokeLinecap="round"
-            fill="none"
-            transform={`rotate(-90 ${center} ${center})`}
-          />
-        </Svg>
-        <View style={styles.gaugeCenterLabel}>
-          <Text style={styles.gaugeMainValue}>{currentVal}</Text>
-          <Text style={styles.gaugeUnit}>{unit}</Text>
-        </View>
-      </View>
-    );
-  };
+  // Visual gauge drawing logic removed here as it is now inside the VisualGauge sub-component.
 
   const getHistoryList = () => {
     return (patient.vitalsHistory || []).slice().reverse();
@@ -285,9 +324,15 @@ const VitalsScreen = ({ route, navigation }) => {
       
       {/* Title Bar */}
       <View style={styles.titleBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <AnimatedPressable 
+          onPress={() => navigation.goBack()} 
+          style={styles.backBtn}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
           <ChevronLeft size={24} color={theme.colors.primary} />
-        </TouchableOpacity>
+        </AnimatedPressable>
         <Text style={styles.titleText}>Vitals Log</Text>
         <View style={{ width: 24 }} />
       </View>
@@ -324,10 +369,10 @@ const VitalsScreen = ({ route, navigation }) => {
               <Text style={styles.patientBed}>{patient.roomType} / Bed {patient.bedNo}</Text>
             </View>
           </View>
-          <TouchableOpacity style={styles.tprBtn} onPress={() => setShowChart(!showChart)}>
+          <AnimatedPressable style={styles.tprBtn} onPress={() => setShowChart(!showChart)}>
             <Activity size={14} color="#FFF" style={{ marginRight: 6 }} />
             <Text style={styles.tprBtnText}>{showChart ? 'Hide Trend Chart' : 'View TPR Chart'}</Text>
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
 
         {/* Chart View */}
@@ -345,7 +390,7 @@ const VitalsScreen = ({ route, navigation }) => {
           contentContainerStyle={styles.tabsContent}
         >
           {Object.values(VITAL_TYPES).map((cat) => (
-            <TouchableOpacity
+            <AnimatedPressable
               key={cat}
               style={[styles.tabItem, activeCategory === cat && styles.tabItemActive]}
               onPress={() => setActiveCategory(cat)}
@@ -353,14 +398,20 @@ const VitalsScreen = ({ route, navigation }) => {
               <Text style={[styles.tabText, activeCategory === cat && styles.tabTextActive]}>
                 {cat}
               </Text>
-            </TouchableOpacity>
+              {activeCategory === cat && (
+                <Animated.View 
+                  entering={FadeIn.duration(200)}
+                  style={styles.tabIndicator} 
+                />
+              )}
+            </AnimatedPressable>
           ))}
         </ScrollView>
 
         {/* Visual Gauge panel */}
         <View style={styles.gaugePanel}>
           <View style={styles.gaugeRow}>
-            {renderVisualGauge()}
+            <VisualGauge activeCategory={activeCategory} latestReading={latestReading} progress={progress} />
             
             <View style={styles.gaugeInfo}>
               <Text style={styles.latestLabel}>Latest Reading</Text>
@@ -424,48 +475,50 @@ const VitalsScreen = ({ route, navigation }) => {
         <View style={styles.historySection}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Measurement History</Text>
-            <TouchableOpacity 
+            <AnimatedPressable 
               style={styles.addBtn}
               onPress={() => setShowAddModal(true)}
             >
               <Plus size={16} color="#FFF" style={{ marginRight: 4 }} />
               <Text style={styles.addBtnText}>Add</Text>
-            </TouchableOpacity>
+            </AnimatedPressable>
           </View>
 
           {historyList.length === 0 ? (
             <Text style={styles.emptyText}>No measurement records available.</Text>
           ) : (
             historyList.map((item, idx) => (
-              <View key={idx} style={styles.historyCard}>
-                <View style={styles.historyHeader}>
-                  <View style={styles.timeRow}>
-                    <Calendar size={12} color={theme.colors.textSecondary} />
-                    <Text style={styles.historyDate}>{item.date}</Text>
-                    <View style={styles.microDot} />
-                    <Clock size={12} color={theme.colors.textSecondary} />
-                    <Text style={styles.historyTime}>{item.time}</Text>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    {item.isOffline && (
-                      <View style={styles.offlineBadge}>
-                        <Text style={styles.offlineBadgeText}>Pending Sync</Text>
+              <AnimatedMount key={idx} slide delay={Math.min(idx * 50, 400)}>
+                <View style={styles.historyCard}>
+                  <View style={styles.historyHeader}>
+                    <View style={styles.timeRow}>
+                      <Calendar size={12} color={theme.colors.textSecondary} />
+                      <Text style={styles.historyDate}>{item.date}</Text>
+                      <View style={styles.microDot} />
+                      <Clock size={12} color={theme.colors.textSecondary} />
+                      <Text style={styles.historyTime}>{item.time}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      {item.isOffline && (
+                        <View style={styles.offlineBadge}>
+                          <Text style={styles.offlineBadgeText}>Pending Sync</Text>
+                        </View>
+                      )}
+                      <View style={[styles.microStatusBadge, { backgroundColor: getStatusColor(getStatusText(activeCategory, item)) + '15' }]}>
+                        <Text style={[styles.microStatusText, { color: getStatusColor(getStatusText(activeCategory, item)) }]}>
+                          {getStatusText(activeCategory, item)}
+                        </Text>
                       </View>
-                    )}
-                    <View style={[styles.microStatusBadge, { backgroundColor: getStatusColor(getStatusText(activeCategory, item)) + '15' }]}>
-                      <Text style={[styles.microStatusText, { color: getStatusColor(getStatusText(activeCategory, item)) }]}>
-                        {getStatusText(activeCategory, item)}
-                      </Text>
                     </View>
                   </View>
+                  <View style={styles.historyBody}>
+                    {getIconForCategory(activeCategory)}
+                    <Text style={styles.historyValue}>
+                      {getReadingDisplay(item, activeCategory)}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.historyBody}>
-                  {getIconForCategory(activeCategory)}
-                  <Text style={styles.historyValue}>
-                    {getReadingDisplay(item, activeCategory)}
-                  </Text>
-                </View>
-              </View>
+              </AnimatedMount>
             ))
           )}
         </View>
@@ -473,105 +526,99 @@ const VitalsScreen = ({ route, navigation }) => {
       </ScrollView>
 
       {/* Add Vitals Modal */}
-      <Modal visible={showAddModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Record Daily Vitals</Text>
-              <TouchableOpacity onPress={() => setShowAddModal(false)}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              
-              {/* Date & Time selectors */}
-              <View style={styles.modalGridRow}>
-                <TouchableOpacity style={styles.dateTimeField} onPress={() => setShowDatePicker(true)}>
-                  <Calendar size={16} color={theme.colors.primary} style={{ marginRight: 6 }} />
-                  <Text style={styles.dateTimeText}>{newVitals.date.toLocaleDateString()}</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.dateTimeField} onPress={() => setShowTimePicker(true)}>
-                  <Clock size={16} color={theme.colors.primary} style={{ marginRight: 6 }} />
-                  <Text style={styles.dateTimeText}>
-                    {newVitals.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              {/* Form Input fields */}
-              <Text style={styles.inputLabel}>Blood Pressure (mmHg)</Text>
-              <View style={styles.modalGridRow}>
-                <TextInput 
-                  style={[styles.modalInput, { flex: 1 }]} 
-                  placeholder="Systolic (e.g. 120)" 
-                  keyboardType="numeric" 
-                  value={newVitals.bpSystolic}
-                  onChangeText={t => setNewVitals(prev => ({ ...prev, bpSystolic: t }))}
-                />
-                <TextInput 
-                  style={[styles.modalInput, { flex: 1 }]} 
-                  placeholder="Diastolic (e.g. 80)" 
-                  keyboardType="numeric" 
-                  value={newVitals.bpDiastolic}
-                  onChangeText={t => setNewVitals(prev => ({ ...prev, bpDiastolic: t }))}
-                />
-              </View>
-
-              <Text style={styles.inputLabel}>Temperature (°C)</Text>
-              <TextInput 
-                style={styles.modalInput} 
-                placeholder="e.g. 37.0" 
-                keyboardType="numeric" 
-                value={newVitals.temp}
-                onChangeText={t => setNewVitals(prev => ({ ...prev, temp: t }))}
-              />
-
-              <Text style={styles.inputLabel}>Heart Rate (bpm)</Text>
-              <TextInput 
-                style={styles.modalInput} 
-                placeholder="e.g. 75" 
-                keyboardType="numeric" 
-                value={newVitals.hr}
-                onChangeText={t => setNewVitals(prev => ({ ...prev, hr: t }))}
-              />
-
-              <Text style={styles.inputLabel}>Respiratory Rate (bpm)</Text>
-              <TextInput 
-                style={styles.modalInput} 
-                placeholder="e.g. 16" 
-                keyboardType="numeric" 
-                value={newVitals.rr}
-                onChangeText={t => setNewVitals(prev => ({ ...prev, rr: t }))}
-              />
-
-              <Text style={styles.inputLabel}>Oxygen Saturation SpO2 (%)</Text>
-              <TextInput 
-                style={styles.modalInput} 
-                placeholder="e.g. 98" 
-                keyboardType="numeric" 
-                value={newVitals.spo2}
-                onChangeText={t => setNewVitals(prev => ({ ...prev, spo2: t }))}
-              />
-
-              <Text style={styles.inputLabel}>Blood Sugar (mg/dL)</Text>
-              <TextInput 
-                style={styles.modalInput} 
-                placeholder="e.g. 100" 
-                keyboardType="numeric" 
-                value={newVitals.sugar}
-                onChangeText={t => setNewVitals(prev => ({ ...prev, sugar: t }))}
-              />
-
-              <TouchableOpacity style={styles.modalSubmitBtn} onPress={handleAddVitalsSubmit}>
-                <Text style={styles.modalSubmitBtnText}>Save Measurements</Text>
-              </TouchableOpacity>
-
-            </ScrollView>
+      <BottomSheet
+        visible={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Record Daily Vitals"
+        height="85%"
+      >
+        <ScrollView showsVerticalScrollIndicator={false}>
+          
+          {/* Date & Time selectors */}
+          <View style={styles.modalGridRow}>
+            <AnimatedPressable style={styles.dateTimeField} onPress={() => setShowDatePicker(true)}>
+              <Calendar size={16} color={theme.colors.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.dateTimeText}>{newVitals.date.toLocaleDateString()}</Text>
+            </AnimatedPressable>
+            
+            <AnimatedPressable style={styles.dateTimeField} onPress={() => setShowTimePicker(true)}>
+              <Clock size={16} color={theme.colors.primary} style={{ marginRight: 6 }} />
+              <Text style={styles.dateTimeText}>
+                {newVitals.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </AnimatedPressable>
           </View>
-        </View>
-      </Modal>
+
+          {/* Form Input fields */}
+          <Text style={styles.inputLabel}>Blood Pressure (mmHg)</Text>
+          <View style={styles.modalGridRow}>
+            <TextInput 
+              style={[styles.modalInput, { flex: 1 }]} 
+              placeholder="Systolic (e.g. 120)" 
+              keyboardType="numeric" 
+              value={newVitals.bpSystolic}
+              onChangeText={t => setNewVitals(prev => ({ ...prev, bpSystolic: t }))}
+            />
+            <TextInput 
+              style={[styles.modalInput, { flex: 1 }]} 
+              placeholder="Diastolic (e.g. 80)" 
+              keyboardType="numeric" 
+              value={newVitals.bpDiastolic}
+              onChangeText={t => setNewVitals(prev => ({ ...prev, bpDiastolic: t }))}
+            />
+          </View>
+
+          <Text style={styles.inputLabel}>Temperature (°C)</Text>
+          <TextInput 
+            style={styles.modalInput} 
+            placeholder="e.g. 37.0" 
+            keyboardType="numeric" 
+            value={newVitals.temp}
+            onChangeText={t => setNewVitals(prev => ({ ...prev, temp: t }))}
+          />
+
+          <Text style={styles.inputLabel}>Heart Rate (bpm)</Text>
+          <TextInput 
+            style={styles.modalInput} 
+            placeholder="e.g. 75" 
+            keyboardType="numeric" 
+            value={newVitals.hr}
+            onChangeText={t => setNewVitals(prev => ({ ...prev, hr: t }))}
+          />
+
+          <Text style={styles.inputLabel}>Respiratory Rate (bpm)</Text>
+          <TextInput 
+            style={styles.modalInput} 
+            placeholder="e.g. 16" 
+            keyboardType="numeric" 
+            value={newVitals.rr}
+            onChangeText={t => setNewVitals(prev => ({ ...prev, rr: t }))}
+          />
+
+          <Text style={styles.inputLabel}>Oxygen Saturation SpO2 (%)</Text>
+          <TextInput 
+            style={styles.modalInput} 
+            placeholder="e.g. 98" 
+            keyboardType="numeric" 
+            value={newVitals.spo2}
+            onChangeText={t => setNewVitals(prev => ({ ...prev, spo2: t }))}
+          />
+
+          <Text style={styles.inputLabel}>Blood Sugar (mg/dL)</Text>
+          <TextInput 
+            style={styles.modalInput} 
+            placeholder="e.g. 100" 
+            keyboardType="numeric" 
+            value={newVitals.sugar}
+            onChangeText={t => setNewVitals(prev => ({ ...prev, sugar: t }))}
+          />
+
+          <AnimatedPressable style={styles.modalSubmitBtn} onPress={handleAddVitalsSubmit}>
+            <Text style={styles.modalSubmitBtnText}>Save Measurements</Text>
+          </AnimatedPressable>
+
+        </ScrollView>
+      </BottomSheet>
 
       {showDatePicker && (
         <DateTimePicker
@@ -604,7 +651,7 @@ const VitalsScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
   },
   titleBar: {
     flexDirection: 'row',
@@ -614,7 +661,7 @@ const styles = StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: theme.colors.border,
   },
   backBtn: {
     padding: theme.spacing.xs,
@@ -628,11 +675,11 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   metadataHeader: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.surfaceDim,
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: theme.colors.border,
   },
   metaRow: {
     flexDirection: 'row',
@@ -881,7 +928,7 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
     marginBottom: theme.spacing.sm,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
   },
   historyHeader: {
     flexDirection: 'row',
@@ -933,11 +980,11 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: theme.colors.overlay,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: '#FFF',
+    backgroundColor: theme.colors.background,
     borderTopLeftRadius: theme.borderRadius.xxl,
     borderTopRightRadius: theme.borderRadius.xxl,
     padding: theme.spacing.xl,
@@ -965,9 +1012,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.lg,
     height: 48,
   },
@@ -984,9 +1031,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   modalInput: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.background,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.lg,
     paddingHorizontal: theme.spacing.md,
     height: 48,
@@ -1010,28 +1057,28 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   tableContainer: {
-    backgroundColor: '#FFF',
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: theme.colors.border,
     borderRadius: theme.borderRadius.lg,
     overflow: 'hidden',
     marginTop: theme.spacing.sm,
   },
   tableHeaderRow: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: theme.colors.surfaceDim,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: theme.colors.border,
   },
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    borderBottomColor: theme.colors.borderLight,
   },
   tableRowAlt: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: theme.colors.surfaceSecondary,
   },
   tableCell: {
     flex: 1,
@@ -1072,6 +1119,15 @@ const styles = StyleSheet.create({
     color: '#D97706',
     fontWeight: '800',
     textTransform: 'uppercase',
+  },
+  tabIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    left: 12,
+    right: 12,
+    height: 3,
+    backgroundColor: '#FFF',
+    borderRadius: 1.5,
   },
 });
 

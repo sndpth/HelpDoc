@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Image, Alert, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Image, Alert, Keyboard, ScrollView } from 'react-native';
+import Animated, { FadeInUp, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import useStore from '../store/useStore';
 import EMRCard from '../components/EMRCard';
+import AnimatedPressable from '../components/AnimatedPressable';
+import BottomSheet from '../components/BottomSheet';
 import { Send, Paperclip, X, Camera, Image as ImageIcon, ChevronLeft } from 'lucide-react-native';
-import { theme } from '../constants/theme';
+import { theme, getSpringConfig } from '../constants/theme';
 import ClinicalCanvas from '../components/ClinicalCanvas';
 import { joinRoom, leaveRoom, sendRoomMessage } from '../services/socket';
 import * as ImagePicker from 'expo-image-picker';
@@ -29,6 +32,30 @@ const ChatScreen = ({ route, navigation }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [zoomImageUri, setZoomImageUri] = useState(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [inputHeight, setInputHeight] = useState(40);
+
+  const sendButtonScale = useSharedValue(0.8);
+  const sendButtonRotate = useSharedValue(-30);
+  const canSend = text.trim() || selectedImage;
+
+  useEffect(() => {
+    if (canSend) {
+      sendButtonScale.value = withSpring(1, getSpringConfig({ damping: 20, stiffness: 160 }));
+      sendButtonRotate.value = withSpring(0, getSpringConfig({ damping: 20, stiffness: 160 }));
+    } else {
+      sendButtonScale.value = withSpring(0.8, getSpringConfig({ damping: 20, stiffness: 160 }));
+      sendButtonRotate.value = withSpring(-30, getSpringConfig({ damping: 20, stiffness: 160 }));
+    }
+  }, [canSend]);
+
+  const animatedSendStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { scale: sendButtonScale.value },
+        { rotate: `${sendButtonRotate.value}deg` }
+      ],
+    };
+  });
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener('keyboardWillShow', () => {
@@ -76,7 +103,7 @@ const ChatScreen = ({ route, navigation }) => {
   const getFullImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (imagePath.startsWith('http') || imagePath.startsWith('file://')) return imagePath;
-    const baseUrl = apiUrl ? apiUrl.replace(/\/$/, '') : 'http://localhost:3000';
+    const baseUrl = apiUrl ? apiUrl.replace(/\/$/, '') : 'https://sndpth-doctorsaap-backend.hf.space';
     return `${baseUrl}${imagePath}`;
   };
 
@@ -137,7 +164,7 @@ const ChatScreen = ({ route, navigation }) => {
         });
 
         const token = useStore.getState().token;
-        const baseUrl = apiUrl ? apiUrl.replace(/\/$/, '') : 'http://localhost:3000';
+        const baseUrl = apiUrl ? apiUrl.replace(/\/$/, '') : 'https://sndpth-doctorsaap-backend.hf.space';
 
         const response = await axios.post(`${baseUrl}/api/chats/upload`, formData, {
           headers: {
@@ -173,7 +200,10 @@ const ChatScreen = ({ route, navigation }) => {
     const isMine = item.isMine;
     
     return (
-      <View style={[styles.messageWrapper, isMine ? styles.messageMine : styles.messageOther]}>
+      <Animated.View 
+        entering={FadeInUp.springify().mass(0.6)}
+        style={[styles.messageWrapper, isMine ? styles.messageMine : styles.messageOther]}
+      >
         {!isMine && <Text style={styles.senderName}>{item.sender}</Text>}
         
         {item.sharedRecord ? (
@@ -205,7 +235,7 @@ const ChatScreen = ({ route, navigation }) => {
             ) : null}
           </View>
         )}
-      </View>
+      </Animated.View>
     );
   };
 
@@ -217,9 +247,15 @@ const ChatScreen = ({ route, navigation }) => {
         keyboardVerticalOffset={insets.top}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <AnimatedPressable 
+            onPress={() => navigation.goBack()} 
+            style={styles.backBtn}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
+          >
             <ChevronLeft size={24} color={theme.colors.primary} />
-          </TouchableOpacity>
+          </AnimatedPressable>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>{doctorName}</Text>
             <View style={styles.statusDot} />
@@ -265,74 +301,84 @@ const ChatScreen = ({ route, navigation }) => {
             paddingBottom: keyboardVisible ? theme.spacing.md : Math.max(insets.bottom, theme.spacing.md)
           }
         ]}>
-          <TouchableOpacity style={styles.attachBtn} onPress={() => setShowAttachmentModal(true)}>
+          <AnimatedPressable 
+            style={styles.attachBtn} 
+            onPress={() => setShowAttachmentModal(true)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            accessibilityLabel="Add attachment"
+            accessibilityRole="button"
+          >
             <Paperclip size={22} color={theme.colors.primary} />
-          </TouchableOpacity>
+          </AnimatedPressable>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { height: Math.min(100, Math.max(40, inputHeight)) }]}
+            multiline={true}
+            onContentSizeChange={(e) => setInputHeight(e.nativeEvent.contentSize.height)}
             placeholder={isUploading ? "Uploading rich media..." : "Type a clinical message..."}
             placeholderTextColor={theme.colors.textSecondary}
             value={text}
-            onChangeText={setText}
+            onChangeText={(val) => {
+              setText(val);
+              if (val === '') setInputHeight(40);
+            }}
             editable={!isUploading}
           />
-          <TouchableOpacity 
-            style={[styles.sendBtn, (isUploading || (!text.trim() && !selectedImage)) && styles.sendBtnDisabled]} 
-            onPress={handleSend}
-            disabled={isUploading || (!text.trim() && !selectedImage)}
-          >
-            <Send size={18} color={theme.colors.surface} />
-          </TouchableOpacity>
+          <Animated.View style={animatedSendStyle}>
+            <AnimatedPressable 
+              style={[styles.sendBtn, (isUploading || (!text.trim() && !selectedImage)) && styles.sendBtnDisabled]} 
+              onPress={handleSend}
+              disabled={isUploading || (!text.trim() && !selectedImage)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Send message"
+              accessibilityRole="button"
+            >
+              <Send size={18} color={theme.colors.surface} />
+            </AnimatedPressable>
+          </Animated.View>
         </View>
 
         {/* Attachment Options Modal */}
-        <Modal visible={showAttachmentModal} animationType="slide" transparent={true}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Add Attachment</Text>
-                <TouchableOpacity onPress={() => setShowAttachmentModal(false)}>
-                  <X size={24} color={theme.colors.textSecondary} />
-                </TouchableOpacity>
+        <BottomSheet
+          visible={showAttachmentModal}
+          onClose={() => setShowAttachmentModal(false)}
+          title="Add Attachment"
+          height="80%"
+        >
+          {/* Media buttons */}
+          <View style={styles.mediaButtonsRow}>
+            <TouchableOpacity style={styles.mediaBtn} onPress={handleTakePhoto}>
+              <View style={[styles.mediaIconWrapper, { backgroundColor: '#E0F2FE' }]}>
+                <Camera size={24} color={theme.colors.primary} />
               </View>
+              <Text style={styles.mediaBtnText}>Camera</Text>
+            </TouchableOpacity>
 
-              {/* Media buttons */}
-              <View style={styles.mediaButtonsRow}>
-                <TouchableOpacity style={styles.mediaBtn} onPress={handleTakePhoto}>
-                  <View style={[styles.mediaIconWrapper, { backgroundColor: '#E0F2FE' }]}>
-                    <Camera size={24} color={theme.colors.primary} />
-                  </View>
-                  <Text style={styles.mediaBtnText}>Camera</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.mediaBtn} onPress={handlePickImage}>
-                  <View style={[styles.mediaIconWrapper, { backgroundColor: '#F0FDF4' }]}>
-                    <ImageIcon size={24} color="#15803D" />
-                  </View>
-                  <Text style={styles.mediaBtnText}>Gallery</Text>
-                </TouchableOpacity>
+            <TouchableOpacity style={styles.mediaBtn} onPress={handlePickImage}>
+              <View style={[styles.mediaIconWrapper, { backgroundColor: '#F0FDF4' }]}>
+                <ImageIcon size={24} color="#15803D" />
               </View>
-
-              <View style={styles.modalDivider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR SHARE EMR</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <FlatList
-                data={patients}
-                keyExtractor={(item) => item.recordID}
-                ListHeaderComponent={<Text style={styles.emrListHeader}>Select Patient Record</Text>}
-                renderItem={({ item }) => (
-                  <TouchableOpacity style={styles.patientShareItem} onPress={() => handleSharePatient(item)}>
-                    <Text style={styles.shareItemName}>{item.fullName}</Text>
-                    <Text style={styles.shareItemDetails}>{item.ipNumber || 'No IP'} • {item.diagnosis || 'No Diagnosis'}</Text>
-                  </TouchableOpacity>
-                )}
-              />
-            </View>
+              <Text style={styles.mediaBtnText}>Gallery</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
+
+          <View style={styles.modalDivider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR SHARE EMR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <FlatList
+            data={patients}
+            keyExtractor={(item) => item.recordID}
+            ListHeaderComponent={<Text style={styles.emrListHeader}>Select Patient Record</Text>}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.patientShareItem} onPress={() => handleSharePatient(item)}>
+                <Text style={styles.shareItemName}>{item.fullName}</Text>
+                <Text style={styles.shareItemDetails}>{item.ipNumber || 'No IP'} • {item.diagnosis || 'No Diagnosis'}</Text>
+              </TouchableOpacity>
+            )}
+          />
+        </BottomSheet>
 
         {/* Fullscreen Lightbox Zoom Modal */}
         <Modal visible={!!zoomImageUri} transparent={true} animationType="fade">
@@ -341,11 +387,19 @@ const ChatScreen = ({ route, navigation }) => {
               <X size={28} color="#FFF" />
             </TouchableOpacity>
             {zoomImageUri && (
-              <Image 
-                source={{ uri: zoomImageUri }} 
-                style={styles.lightboxImage} 
-                resizeMode="contain" 
-              />
+              <ScrollView
+                maximumZoomScale={3}
+                minimumZoomScale={1}
+                showsHorizontalScrollIndicator={false}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.lightboxImageContainer}
+              >
+                <Image 
+                  source={{ uri: zoomImageUri }} 
+                  style={styles.lightboxImage} 
+                  resizeMode="contain" 
+                />
+              </ScrollView>
             )}
           </View>
         </Modal>
@@ -561,6 +615,12 @@ const styles = StyleSheet.create({
   lightboxImage: {
     width: '95%',
     height: '80%',
+  },
+  lightboxImageContainer: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   lightboxCloseBtn: {
     position: 'absolute',

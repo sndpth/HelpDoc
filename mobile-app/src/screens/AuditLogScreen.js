@@ -4,6 +4,9 @@ import { ChevronLeft, Shield, Clock, User, Plus, Edit2, Trash2, Eye, ArrowRightL
 import { theme } from '../constants/theme';
 import ClinicalCanvas from '../components/ClinicalCanvas';
 import useStore from '../store/useStore';
+import SkeletonLoader from '../components/SkeletonLoader';
+import AnimatedPressable from '../components/AnimatedPressable';
+import AnimatedMount from '../components/AnimatedMount';
 
 const ACTION_CONFIG = {
   CREATE:        { color: '#10B981', bg: '#D1FAE5', icon: Plus,          label: 'Created' },
@@ -81,51 +84,53 @@ const AuditLogScreen = ({ navigation }) => {
     const details = parseDetails(log.details);
 
     return (
-      <View key={log.id || idx} style={styles.logEntry}>
-        <View style={styles.timelineConnector}>
-          <View style={[styles.timelineDot, { backgroundColor: config.color }]} />
-          {idx < filteredLogs.length - 1 && <View style={styles.timelineLine} />}
-        </View>
-
-        <View style={styles.logCard}>
-          <View style={styles.logCardTop}>
-            <View style={[styles.actionBadge, { backgroundColor: config.bg }]}>
-              <Icon size={12} color={config.color} />
-              <Text style={[styles.actionText, { color: config.color }]}>{config.label}</Text>
-            </View>
-            <View style={[styles.resourceBadge]}>
-              <Text style={styles.resourceText}>{RESOURCE_LABELS[log.resource] || log.resource}</Text>
-            </View>
+      <AnimatedMount key={log.id || idx} slide delay={Math.min(idx * 40, 300)}>
+        <View style={styles.logEntry}>
+          <View style={styles.timelineConnector}>
+            <View style={[styles.timelineDot, { backgroundColor: config.color }]} />
+            {idx < filteredLogs.length - 1 && <View style={styles.timelineLine} />}
           </View>
 
-          <View style={styles.logCardBody}>
-            <View style={styles.logMeta}>
-              <User size={12} color="#9CA3AF" />
-              <Text style={styles.logMetaText}>{log.userName}</Text>
+          <View style={styles.logCard}>
+            <View style={styles.logCardTop}>
+              <View style={[styles.actionBadge, { backgroundColor: config.bg }]}>
+                <Icon size={12} color={config.color} />
+                <Text style={[styles.actionText, { color: config.color }]}>{config.label}</Text>
+              </View>
+              <View style={[styles.resourceBadge]}>
+                <Text style={styles.resourceText}>{RESOURCE_LABELS[log.resource] || log.resource}</Text>
+              </View>
             </View>
-            {patientName && (
+
+            <View style={styles.logCardBody}>
               <View style={styles.logMeta}>
-                <FileText size={12} color="#9CA3AF" />
-                <Text style={styles.logMetaText}>{patientName}</Text>
+                <User size={12} color="#9CA3AF" />
+                <Text style={styles.logMetaText}>{log.userName}</Text>
+              </View>
+              {patientName && (
+                <View style={styles.logMeta}>
+                  <FileText size={12} color="#9CA3AF" />
+                  <Text style={styles.logMetaText}>{patientName}</Text>
+                </View>
+              )}
+              <View style={styles.logMeta}>
+                <Clock size={12} color="#9CA3AF" />
+                <Text style={styles.logMetaText}>{formatTime(log.createdAt)}</Text>
+              </View>
+            </View>
+
+            {details && (
+              <View style={styles.detailsBox}>
+                {Object.entries(details).map(([key, val]) => (
+                  <Text key={key} style={styles.detailText}>
+                    <Text style={styles.detailKey}>{key}:</Text> {String(val)}
+                  </Text>
+                ))}
               </View>
             )}
-            <View style={styles.logMeta}>
-              <Clock size={12} color="#9CA3AF" />
-              <Text style={styles.logMetaText}>{formatTime(log.createdAt)}</Text>
-            </View>
           </View>
-
-          {details && (
-            <View style={styles.detailsBox}>
-              {Object.entries(details).map(([key, val]) => (
-                <Text key={key} style={styles.detailText}>
-                  <Text style={styles.detailKey}>{key}:</Text> {String(val)}
-                </Text>
-              ))}
-            </View>
-          )}
         </View>
-      </View>
+      </AnimatedMount>
     );
   };
 
@@ -134,16 +139,28 @@ const AuditLogScreen = ({ navigation }) => {
       <StatusBar barStyle="dark-content" />
       
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <AnimatedPressable 
+          onPress={() => navigation.goBack()} 
+          style={styles.backBtn}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Go back"
+          accessibilityRole="button"
+        >
           <ChevronLeft size={24} color={theme.colors.primary} />
-        </TouchableOpacity>
+        </AnimatedPressable>
         <View style={styles.headerCenter}>
           <Shield size={18} color={theme.colors.primary} />
           <Text style={styles.headerTitle}>Audit Trail</Text>
         </View>
-        <TouchableOpacity onPress={loadLogs} style={styles.refreshBtn}>
+        <AnimatedPressable 
+          onPress={loadLogs} 
+          style={styles.refreshBtn}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Refresh audit log"
+          accessibilityRole="button"
+        >
           <Text style={styles.refreshText}>↻</Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
       </View>
 
       {/* Filter Tabs */}
@@ -154,7 +171,7 @@ const AuditLogScreen = ({ navigation }) => {
             const config = ACTION_CONFIG[tab];
             const count = tab === 'All' ? logs.length : logs.filter(l => l.action === tab).length;
             return (
-              <TouchableOpacity
+              <AnimatedPressable
                 key={tab}
                 style={[styles.filterTab, isActive && { backgroundColor: config?.bg || '#EFF6FF', borderColor: config?.color || theme.colors.primary }]}
                 onPress={() => setActiveFilter(tab)}
@@ -165,7 +182,7 @@ const AuditLogScreen = ({ navigation }) => {
                 <View style={[styles.filterCount, isActive && { backgroundColor: config?.color || theme.colors.primary }]}>
                   <Text style={[styles.filterCountText, isActive && { color: '#FFF' }]}>{count}</Text>
                 </View>
-              </TouchableOpacity>
+              </AnimatedPressable>
             );
           })}
         </ScrollView>
@@ -173,9 +190,12 @@ const AuditLogScreen = ({ navigation }) => {
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {loading ? (
-          <View style={styles.loaderBox}>
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-            <Text style={styles.loaderText}>Loading audit trail...</Text>
+          <View style={{ paddingHorizontal: theme.spacing.xs, paddingTop: 10 }}>
+            <SkeletonLoader variant="card" />
+            <View style={{ height: 12 }} />
+            <SkeletonLoader variant="card" />
+            <View style={{ height: 12 }} />
+            <SkeletonLoader variant="card" />
           </View>
         ) : filteredLogs.length === 0 ? (
           <View style={styles.emptyBox}>

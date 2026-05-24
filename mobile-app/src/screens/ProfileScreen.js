@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, Modal, TextInput, StatusBar, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import Animated, { useSharedValue, useAnimatedScrollHandler, useAnimatedStyle, interpolate } from 'react-native-reanimated';
 import { User, LogOut, ChevronRight, X, Settings, Key, Info, BookOpen, HeartHandshake, Shield, BarChart2, Building2 } from 'lucide-react-native';
 import useStore from '../store/useStore';
 import { theme } from '../constants/theme';
 import ClinicalCanvas from '../components/ClinicalCanvas';
+import AnimatedPressable from '../components/AnimatedPressable';
+import BottomSheet from '../components/BottomSheet';
 
 const ProfileScreen = ({ navigation }) => {
   const { userProfile, logout, hospitalDetails, updateHospitalDetails } = useStore();
@@ -11,22 +14,63 @@ const ProfileScreen = ({ navigation }) => {
   const [passwordForm, setPasswordForm] = useState({ current: '', new: '', confirm: '' });
   const [hospitalForm, setHospitalForm] = useState({ name: '', address: '', bedCapacity: '50' });
 
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+  });
+
+  const animatedHeaderStyle = useAnimatedStyle(() => {
+    const translateY = interpolate(
+      scrollY.value,
+      [0, 260],
+      [0, -130],
+      'clamp'
+    );
+    const scale = interpolate(
+      scrollY.value,
+      [-100, 0],
+      [1.3, 1],
+      'clamp'
+    );
+    return {
+      transform: [
+        { translateY },
+        { scale }
+      ],
+    };
+  });
+
   const handleLogout = () => {
-    logout();
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out of HelpDoc?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign Out', style: 'destructive', onPress: () => logout() }
+      ]
+    );
+  };
+
+  const getInitials = (name) => {
+    if (!name) return 'HP';
+    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
   const handleChangePassword = () => {
     if (passwordForm.new === passwordForm.confirm && passwordForm.new.trim()) {
-      alert('Password updated successfully!');
+      Alert.alert('Success', 'Password updated successfully!');
       setActiveModal(null);
       setPasswordForm({ current: '', new: '', confirm: '' });
     } else {
-      alert('New passwords do not match or are empty.');
+      Alert.alert('Error', 'New passwords do not match or are empty.');
     }
   };
 
   const MenuItem = ({ icon: Icon, title, color = theme.colors.primary, onPress }) => (
-    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
+    <AnimatedPressable style={styles.menuItem} onPress={onPress}>
       <View style={styles.menuItemLeft}>
         <View style={[styles.iconBox, { backgroundColor: color + '12' }]}>
           <Icon size={18} color={color} />
@@ -34,36 +78,52 @@ const ProfileScreen = ({ navigation }) => {
         <Text style={styles.menuTitle}>{title}</Text>
       </View>
       <ChevronRight size={18} color={theme.colors.textSecondary} />
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 
   return (
     <ClinicalCanvas style={styles.container}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      {/* Top Profile Blue Panel (Parallax Header) */}
+      <Animated.View style={[styles.profileHeaderCard, animatedHeaderStyle]}>
+        <AnimatedPressable 
+          style={styles.settingsHeaderBtn} 
+          onPress={() => setActiveModal('profile')}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityLabel="Edit profile details"
+          accessibilityRole="button"
+        >
+          <Settings size={20} color="#FFF" />
+        </AnimatedPressable>
         
-        {/* Top Profile Blue Panel */}
-        <View style={styles.profileHeaderCard}>
-          <TouchableOpacity style={styles.settingsHeaderBtn} onPress={() => setActiveModal('profile')}>
-            <Settings size={20} color="#FFF" />
-          </TouchableOpacity>
-          
+        {userProfile?.avatar ? (
           <Image 
-            source={{ uri: userProfile?.avatar || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=200&auto=format&fit=crop' }} 
+            source={{ uri: userProfile.avatar }} 
             style={styles.avatar} 
           />
-          
-          <Text style={styles.userName}>Dr. {userProfile?.name}</Text>
-          <Text style={styles.userSpecialty}>{userProfile?.specialty}</Text>
-          <Text style={styles.userHospital}>{userProfile?.hospital || 'T.U. Teaching Hospital'}</Text>
-
-          <View style={styles.badgeRow}>
-            <Shield size={12} color="#10B981" />
-            <Text style={styles.badgeText}>Verified Clinical Specialist</Text>
+        ) : (
+          <View style={styles.avatarFallback}>
+            <Text style={styles.avatarFallbackText}>{getInitials(userProfile?.name)}</Text>
           </View>
-        </View>
+        )}
+        
+        <Text style={styles.userName}>Dr. {userProfile?.name}</Text>
+        <Text style={styles.userSpecialty}>{userProfile?.specialty}</Text>
+        <Text style={styles.userHospital}>{userProfile?.hospital || 'T.U. Teaching Hospital'}</Text>
 
+        <View style={styles.badgeRow}>
+          <Shield size={12} color="#10B981" />
+          <Text style={styles.badgeText}>Verified Clinical Specialist</Text>
+        </View>
+      </Animated.View>
+
+      <Animated.ScrollView 
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        contentContainerStyle={styles.scrollContent} 
+        showsVerticalScrollIndicator={false}
+      >
         {/* List Menu Section */}
         <View style={styles.menuCard}>
           <MenuItem 
@@ -138,214 +198,178 @@ const ProfileScreen = ({ navigation }) => {
         </View>
 
         {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.8}>
+        <AnimatedPressable style={styles.logoutBtn} onPress={handleLogout}>
           <LogOut size={18} color="#EF4444" style={{ marginRight: 8 }} />
           <Text style={styles.logoutText}>Sign Out of HelpDoc</Text>
-        </TouchableOpacity>
+        </AnimatedPressable>
 
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* MODALS */}
 
       {/* My Profile Modal */}
-      <Modal visible={activeModal === 'profile'} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Practitioner Details</Text>
-              <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView>
-              <View style={styles.fieldBox}>
-                <Text style={styles.fieldLabel}>Full Name</Text>
-                <Text style={styles.fieldVal}>Dr. {userProfile?.name}</Text>
-              </View>
-              <View style={styles.fieldBox}>
-                <Text style={styles.fieldLabel}>Specialization</Text>
-                <Text style={styles.fieldVal}>{userProfile?.specialty}</Text>
-              </View>
-              <View style={styles.fieldBox}>
-                <Text style={styles.fieldLabel}>Hospital Affiliate</Text>
-                <Text style={styles.fieldVal}>{userProfile?.hospital || 'T.U. Teaching Hospital'}</Text>
-              </View>
-              <View style={styles.fieldBox}>
-                <Text style={styles.fieldLabel}>License Number</Text>
-                <Text style={styles.fieldVal}>NMC Registry #228491</Text>
-              </View>
-            </ScrollView>
+      <BottomSheet
+        visible={activeModal === 'profile'}
+        onClose={() => setActiveModal(null)}
+        title="Practitioner Details"
+        height="50%"
+      >
+        <ScrollView>
+          <View style={styles.fieldBox}>
+            <Text style={styles.fieldLabel}>Full Name</Text>
+            <Text style={styles.fieldVal}>Dr. {userProfile?.name}</Text>
           </View>
-        </View>
-      </Modal>
+          <View style={styles.fieldBox}>
+            <Text style={styles.fieldLabel}>Specialization</Text>
+            <Text style={styles.fieldVal}>{userProfile?.specialty}</Text>
+          </View>
+          <View style={styles.fieldBox}>
+            <Text style={styles.fieldLabel}>Hospital Affiliate</Text>
+            <Text style={styles.fieldVal}>{userProfile?.hospital || 'T.U. Teaching Hospital'}</Text>
+          </View>
+          <View style={styles.fieldBox}>
+            <Text style={styles.fieldLabel}>License Number</Text>
+            <Text style={styles.fieldVal}>NMC Registry #228491</Text>
+          </View>
+        </ScrollView>
+      </BottomSheet>
 
       {/* Change Password Modal */}
-      <Modal visible={activeModal === 'password'} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Change Password</Text>
-              <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Current Password"
-              secureTextEntry
-              value={passwordForm.current}
-              onChangeText={t => setPasswordForm(p => ({ ...p, current: t }))}
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="New Password"
-              secureTextEntry
-              value={passwordForm.new}
-              onChangeText={t => setPasswordForm(p => ({ ...p, new: t }))}
-            />
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Confirm New Password"
-              secureTextEntry
-              value={passwordForm.confirm}
-              onChangeText={t => setPasswordForm(p => ({ ...p, confirm: t }))}
-            />
-            <TouchableOpacity style={styles.modalSubmitBtn} onPress={handleChangePassword}>
-              <Text style={styles.modalSubmitText}>Update Password</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <BottomSheet
+        visible={activeModal === 'password'}
+        onClose={() => setActiveModal(null)}
+        title="Change Password"
+        height="50%"
+      >
+        <TextInput
+          style={styles.modalInput}
+          placeholder="Current Password"
+          secureTextEntry
+          value={passwordForm.current}
+          onChangeText={t => setPasswordForm(p => ({ ...p, current: t }))}
+        />
+        <TextInput
+          style={styles.modalInput}
+          placeholder="New Password"
+          secureTextEntry
+          value={passwordForm.new}
+          onChangeText={t => setPasswordForm(p => ({ ...p, new: t }))}
+        />
+        <TextInput
+          style={styles.modalInput}
+          placeholder="Confirm New Password"
+          secureTextEntry
+          value={passwordForm.confirm}
+          onChangeText={t => setPasswordForm(p => ({ ...p, confirm: t }))}
+        />
+        <TouchableOpacity style={styles.modalSubmitBtn} onPress={handleChangePassword}>
+          <Text style={styles.modalSubmitText}>Update Password</Text>
+        </TouchableOpacity>
+      </BottomSheet>
 
       {/* Disclaimer Modal */}
-      <Modal visible={activeModal === 'disclaimer'} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Disclaimer & Privacy</Text>
-              <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView>
-              <Text style={styles.docText}>
-                HelpDoc is an advanced Electronic Medical Record (EMR) and clinical messaging workspace. All communication inside the platform is encrypted and adheres to international HIPAA guidelines for transmitting Protected Health Information (PHI).
-              </Text>
-              <Text style={styles.docText}>
-                Clinicians are advised to cross-examine and verify all patient measurements manually before making significant clinical decisions. HelpDoc does not replace independent clinical judgment.
-              </Text>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <BottomSheet
+        visible={activeModal === 'disclaimer'}
+        onClose={() => setActiveModal(null)}
+        title="Disclaimer & Privacy"
+        height="50%"
+      >
+        <ScrollView>
+          <Text style={styles.docText}>
+            HelpDoc is an advanced Electronic Medical Record (EMR) and clinical messaging workspace. All communication inside the platform is encrypted and adheres to international HIPAA guidelines for transmitting Protected Health Information (PHI).
+          </Text>
+          <Text style={styles.docText}>
+            Clinicians are advised to cross-examine and verify all patient measurements manually before making significant clinical decisions. HelpDoc does not replace independent clinical judgment.
+          </Text>
+        </ScrollView>
+      </BottomSheet>
 
       {/* Terms Modal */}
-      <Modal visible={activeModal === 'terms'} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Terms and Conditions</Text>
-              <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView>
-              <Text style={styles.docText}>
-                By accessing this application, you verify that you are a certified medical practitioner with an active license.
-              </Text>
-              <Text style={styles.docText}>
-                You agree not to share credentials, violate patient confidentiality, or capture screenshot recordings of patient PHI without standard operational consensus.
-              </Text>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+      <BottomSheet
+        visible={activeModal === 'terms'}
+        onClose={() => setActiveModal(null)}
+        title="Terms and Conditions"
+        height="50%"
+      >
+        <ScrollView>
+          <Text style={styles.docText}>
+            By accessing this application, you verify that you are a certified medical practitioner with an active license.
+          </Text>
+          <Text style={styles.docText}>
+            You agree not to share credentials, violate patient confidentiality, or capture screenshot recordings of patient PHI without standard operational consensus.
+          </Text>
+        </ScrollView>
+      </BottomSheet>
 
       {/* About Us Modal */}
-      <Modal visible={activeModal === 'about'} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>About HelpDoc Workspace</Text>
-              <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView style={{ alignItems: 'center' }}>
-              <View style={styles.aboutIconBox}>
-                <HeartHandshake size={32} color={theme.colors.primary} />
-              </View>
-              <Text style={styles.aboutVersion}>HelpDoc Workspace v3.1.2</Text>
-              <Text style={styles.aboutDesc}>
-                HelpDoc represents the next generation of clinical messaging and electronic records management, providing high-density, real-time connectivity between physicians, nurses, and laboratory teams.
-              </Text>
-            </ScrollView>
+      <BottomSheet
+        visible={activeModal === 'about'}
+        onClose={() => setActiveModal(null)}
+        title="About HelpDoc Workspace"
+        height="55%"
+      >
+        <ScrollView contentContainerStyle={{ alignItems: 'center' }}>
+          <View style={styles.aboutIconBox}>
+            <HeartHandshake size={32} color={theme.colors.primary} />
           </View>
-        </View>
-      </Modal>
+          <Text style={styles.aboutVersion}>HelpDoc Workspace v3.1.2</Text>
+          <Text style={styles.aboutDesc}>
+            HelpDoc represents the next generation of clinical messaging and electronic records management, providing high-density, real-time connectivity between physicians, nurses, and laboratory teams.
+          </Text>
+        </ScrollView>
+      </BottomSheet>
 
       {/* Hospital Settings Modal */}
-      <Modal visible={activeModal === 'hospital'} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Hospital Settings</Text>
-              <TouchableOpacity onPress={() => setActiveModal(null)}>
-                <X size={22} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <ScrollView>
-              <Text style={styles.fieldLabel}>Hospital Name</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={hospitalForm.name}
-                onChangeText={t => setHospitalForm(p => ({ ...p, name: t }))}
-                placeholder="Hospital Name"
-              />
-              <Text style={styles.fieldLabel}>Address</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={hospitalForm.address}
-                onChangeText={t => setHospitalForm(p => ({ ...p, address: t }))}
-                placeholder="Address"
-              />
-              <Text style={styles.fieldLabel}>Total Bed Capacity</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={hospitalForm.bedCapacity}
-                onChangeText={t => setHospitalForm(p => ({ ...p, bedCapacity: t }))}
-                placeholder="Bed Capacity"
-                keyboardType="numeric"
-              />
-              <TouchableOpacity 
-                style={styles.modalSubmitBtn} 
-                onPress={async () => {
-                  const capacity = parseInt(hospitalForm.bedCapacity) || 50;
-                  const res = await updateHospitalDetails({
-                    name: hospitalForm.name,
-                    address: hospitalForm.address,
-                    bedCapacity: capacity
-                  });
-                  if (res.success) {
-                    Alert.alert('Success', 'Hospital details updated successfully!');
-                    setActiveModal(null);
-                  } else {
-                    Alert.alert('Error', 'Failed to update hospital details: ' + (res.error || 'Unknown error'));
-                  }
-                }}
-              >
-                <Text style={styles.modalSubmitText}>Save Settings</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <BottomSheet
+        visible={activeModal === 'hospital'}
+        onClose={() => setActiveModal(null)}
+        title="Hospital Settings"
+        height="65%"
+      >
+        <ScrollView>
+          <Text style={styles.fieldLabel}>Hospital Name</Text>
+          <TextInput
+            style={styles.modalInput}
+            value={hospitalForm.name}
+            onChangeText={t => setHospitalForm(p => ({ ...p, name: t }))}
+            placeholder="Hospital Name"
+          />
+          <Text style={styles.fieldLabel}>Address</Text>
+          <TextInput
+            style={styles.modalInput}
+            value={hospitalForm.address}
+            onChangeText={t => setHospitalForm(p => ({ ...p, address: t }))}
+            placeholder="Address"
+          />
+          <Text style={styles.fieldLabel}>Total Bed Capacity</Text>
+          <TextInput
+            style={styles.modalInput}
+            value={hospitalForm.bedCapacity}
+            onChangeText={t => setHospitalForm(p => ({ ...p, bedCapacity: t }))}
+            placeholder="Bed Capacity"
+            keyboardType="numeric"
+          />
+          <TouchableOpacity 
+            style={styles.modalSubmitBtn} 
+            onPress={async () => {
+              const capacity = parseInt(hospitalForm.bedCapacity) || 50;
+              const res = await updateHospitalDetails({
+                name: hospitalForm.name,
+                address: hospitalForm.address,
+                bedCapacity: capacity
+              });
+              if (res.success) {
+                Alert.alert('Success', 'Hospital details updated successfully!');
+                setActiveModal(null);
+              } else {
+                Alert.alert('Error', 'Failed to update hospital details: ' + (res.error || 'Unknown error'));
+              }
+            }}
+          >
+            <Text style={styles.modalSubmitText}>Save Settings</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </BottomSheet>
 
     </ClinicalCanvas>
   );
@@ -357,16 +381,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
   },
   scrollContent: {
+    paddingTop: 270,
     paddingBottom: 60,
   },
   profileHeaderCard: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 250,
+    zIndex: 10,
     backgroundColor: theme.colors.primary,
     borderBottomLeftRadius: 36,
     borderBottomRightRadius: 36,
     alignItems: 'center',
-    paddingVertical: theme.spacing.xxl,
+    justifyContent: 'center',
+    paddingTop: Platform.OS === 'ios' ? 40 : StatusBar.currentHeight || 24,
     paddingHorizontal: theme.spacing.lg,
-    position: 'relative',
     shadowColor: theme.colors.primary,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.1,
@@ -375,9 +406,10 @@ const styles = StyleSheet.create({
   },
   settingsHeaderBtn: {
     position: 'absolute',
-    top: theme.spacing.md,
+    top: Platform.OS === 'ios' ? 50 : (StatusBar.currentHeight || 24) + 10,
     right: theme.spacing.lg,
     padding: theme.spacing.xs,
+    zIndex: 20,
   },
   avatar: {
     width: 90,
@@ -423,7 +455,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF',
     borderRadius: theme.borderRadius.xxl,
     marginHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.xl,
+    marginTop: 0,
     paddingHorizontal: theme.spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -433,6 +465,23 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 1,
     overflow: 'hidden',
+  },
+  avatarFallback: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 3,
+    borderColor: '#FFF',
+    marginBottom: theme.spacing.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarFallbackText: {
+    color: '#FFF',
+    fontSize: 32,
+    fontWeight: '800',
+    fontFamily: theme.typography.fontFamily,
   },
   menuItem: {
     flexDirection: 'row',

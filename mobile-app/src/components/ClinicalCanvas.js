@@ -15,7 +15,7 @@ const ClinicalCanvas = ({ children, style }) => {
   // standard padding for consistency. On Native, we use the device-specific insets.
   const dynamicStyle = {
     paddingTop: Platform.OS === 'web' ? theme.spacing.lg : Math.max(insets.top, theme.spacing.md),
-    paddingBottom: (Platform.OS === 'web' ? theme.spacing.md : insets.bottom) + theme.spacing.xs + 30,
+    paddingBottom: Platform.OS === 'web' ? theme.spacing.md : Math.max(insets.bottom, theme.spacing.md),
     paddingLeft: insets.left,
     paddingRight: insets.right,
   };
