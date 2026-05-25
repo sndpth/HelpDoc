@@ -99,6 +99,11 @@ const AddPatientScreen = ({ navigation, route }) => {
 
   const [datePickerField, setDatePickerField] = useState(null); // track which field is being edited
   const scrollViewRef = useRef(null);
+  const patientIdRef = useRef(null);
+  const fileNoRef = useRef(null);
+  const ageRef = useRef(null);
+  const genderRef = useRef(null);
+  const addressRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [collapsed, setCollapsed] = useState({
     demographics: false,
@@ -185,6 +190,8 @@ const AddPatientScreen = ({ navigation, route }) => {
           ref={scrollViewRef}
           contentContainerStyle={styles.scroll} 
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
         >
           {/* Admission Type Selection */}
           <View style={styles.segmentedContainer}>
@@ -218,20 +225,81 @@ const AddPatientScreen = ({ navigation, route }) => {
             </TouchableOpacity>
             {!collapsed.demographics && (
               <Animated.View entering={FadeInUp.duration(200)}>
-                <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Patient Full Name" value={form.fullName} onChangeText={(t) => updateField('fullName', t)} />
+                <TextInput 
+                  style={styles.input} 
+                  placeholderTextColor={theme.colors.textSecondary} 
+                  placeholder="Patient Full Name" 
+                  value={form.fullName} 
+                  onChangeText={(t) => updateField('fullName', t)} 
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                  onSubmitEditing={() => patientIdRef.current?.focus()}
+                />
                 
                 <View style={styles.row}>
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Patient ID (e.g. 81552753)" value={form.patientId} onChangeText={(t) => updateField('patientId', t)} />
+                  <TextInput 
+                    ref={patientIdRef}
+                    style={[styles.input, styles.flex1]} 
+                    placeholderTextColor={theme.colors.textSecondary} 
+                    placeholder="Patient ID (e.g. 81552753)" 
+                    value={form.patientId} 
+                    onChangeText={(t) => updateField('patientId', t)} 
+                    keyboardType="number-pad"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    onSubmitEditing={() => fileNoRef.current?.focus()}
+                  />
                   <View style={styles.spacer} />
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="File No (e.g. F-8812)" value={form.fileNo} onChangeText={(t) => updateField('fileNo', t)} />
+                  <TextInput 
+                    ref={fileNoRef}
+                    style={[styles.input, styles.flex1]} 
+                    placeholderTextColor={theme.colors.textSecondary} 
+                    placeholder="File No (e.g. F-8812)" 
+                    value={form.fileNo} 
+                    onChangeText={(t) => updateField('fileNo', t)} 
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="next"
+                    onSubmitEditing={() => ageRef.current?.focus()}
+                  />
                 </View>
 
                 <View style={styles.row}>
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Age" keyboardType="numeric" value={form.age.toString()} onChangeText={(t) => updateField('age', t)} />
+                  <TextInput 
+                    ref={ageRef}
+                    style={[styles.input, styles.flex1]} 
+                    placeholderTextColor={theme.colors.textSecondary} 
+                    placeholder="Age" 
+                    keyboardType="number-pad" 
+                    value={form.age.toString()} 
+                    onChangeText={(t) => updateField('age', t)} 
+                    returnKeyType="next"
+                    onSubmitEditing={() => genderRef.current?.focus()}
+                  />
                   <View style={styles.spacer} />
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Gender" value={form.gender} onChangeText={(t) => updateField('gender', t)} />
+                  <TextInput 
+                    ref={genderRef}
+                    style={[styles.input, styles.flex1]} 
+                    placeholderTextColor={theme.colors.textSecondary} 
+                    placeholder="Gender" 
+                    value={form.gender} 
+                    onChangeText={(t) => updateField('gender', t)} 
+                    autoCapitalize="words"
+                    returnKeyType="next"
+                    onSubmitEditing={() => addressRef.current?.focus()}
+                  />
                 </View>
-                <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Address" value={form.address} onChangeText={(t) => updateField('address', t)} />
+                <TextInput 
+                  ref={addressRef}
+                  style={styles.input} 
+                  placeholderTextColor={theme.colors.textSecondary} 
+                  placeholder="Address" 
+                  value={form.address} 
+                  onChangeText={(t) => updateField('address', t)} 
+                  autoCapitalize="words"
+                  returnKeyType="done"
+                />
               </Animated.View>
             )}
           </View>
@@ -255,18 +323,56 @@ const AddPatientScreen = ({ navigation, route }) => {
                 {!collapsed.location && (
                   <Animated.View entering={FadeInUp.duration(200)}>
                     <View style={styles.row}>
-                      <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="IPD ID (e.g. 783918)" value={form.ipdId} onChangeText={(t) => updateField('ipdId', t)} />
+                      <TextInput 
+                        style={[styles.input, styles.flex1]} 
+                        placeholderTextColor={theme.colors.textSecondary} 
+                        placeholder="IPD ID (e.g. 783918)" 
+                        value={form.ipdId} 
+                        onChangeText={(t) => updateField('ipdId', t)} 
+                        keyboardType="number-pad"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
                       <View style={styles.spacer} />
-                      <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="IP Number" value={form.ipNumber} onChangeText={(t) => updateField('ipNumber', t)} />
+                      <TextInput 
+                        style={[styles.input, styles.flex1]} 
+                        placeholderTextColor={theme.colors.textSecondary} 
+                        placeholder="IP Number" 
+                        value={form.ipNumber} 
+                        onChangeText={(t) => updateField('ipNumber', t)} 
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
                     </View>
-
-                    <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Ward Name" value={form.wardName} onChangeText={(t) => updateField('wardName', t)} />
-                    
                     <View style={styles.row}>
-                      <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Room Type (e.g. CABIN)" value={form.roomType} onChangeText={(t) => updateField('roomType', t)} />
+                      <TextInput 
+                        style={[styles.input, styles.flex1]} 
+                        placeholderTextColor={theme.colors.textSecondary} 
+                        placeholder="Bed No" 
+                        value={form.bedNo} 
+                        onChangeText={(t) => updateField('bedNo', t)} 
+                        keyboardType="number-pad"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
                       <View style={styles.spacer} />
-                      <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Bed No (e.g. 1701)" value={form.bedNo} onChangeText={(t) => updateField('bedNo', t)} />
+                      <TextInput 
+                        style={[styles.input, styles.flex1]} 
+                        placeholderTextColor={theme.colors.textSecondary} 
+                        placeholder="Room Type" 
+                        value={form.roomType} 
+                        onChangeText={(t) => updateField('roomType', t)} 
+                        autoCapitalize="words"
+                      />
                     </View>
+                    <TextInput 
+                      style={styles.input} 
+                      placeholderTextColor={theme.colors.textSecondary} 
+                      placeholder="Ward Name" 
+                      value={form.wardName} 
+                      onChangeText={(t) => updateField('wardName', t)} 
+                      autoCapitalize="words"
+                    />
 
                     <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Consultant Incharge" value={form.inchargeDoctor} onChangeText={(t) => updateField('inchargeDoctor', t)} />
                     <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Collaborators (comma separated e.g. Dr. Susan Giri)" value={form.additionalDoctors} onChangeText={(t) => updateField('additionalDoctors', t)} />
@@ -432,18 +538,71 @@ const AddPatientScreen = ({ navigation, route }) => {
             {!collapsed.labs && (
               <Animated.View entering={FadeInUp.duration(200)}>
                 <View style={styles.row}>
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Hb" value={form.hb} onChangeText={(t) => updateField('hb', t)} />
+                  <TextInput 
+                    style={[styles.input, styles.flex1]} 
+                    placeholderTextColor={theme.colors.textSecondary} 
+                    placeholder="Hb" 
+                    value={form.hb} 
+                    onChangeText={(t) => updateField('hb', t)} 
+                    keyboardType="decimal-pad"
+                  />
                   <View style={styles.spacer} />
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="TC" value={form.tc} onChangeText={(t) => updateField('tc', t)} />
+                  <TextInput 
+                    style={[styles.input, styles.flex1]} 
+                    placeholderTextColor={theme.colors.textSecondary} 
+                    placeholder="TC" 
+                    value={form.tc} 
+                    onChangeText={(t) => updateField('tc', t)} 
+                    keyboardType="number-pad"
+                  />
                   <View style={styles.spacer} />
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Neu" value={form.neu} onChangeText={(t) => updateField('neu', t)} />
+                  <TextInput 
+                    style={[styles.input, styles.flex1]} 
+                    placeholderTextColor={theme.colors.textSecondary} 
+                    placeholder="Neu" 
+                    value={form.neu} 
+                    onChangeText={(t) => updateField('neu', t)} 
+                    keyboardType="decimal-pad"
+                  />
                 </View>
                 <View style={styles.row}>
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Lym" value={form.lym} onChangeText={(t) => updateField('lym', t)} />
+                  <TextInput 
+                    style={[styles.input, styles.flex1]} 
+                    placeholderTextColor={theme.colors.textSecondary} 
+                    placeholder="Lym" 
+                    value={form.lym} 
+                    onChangeText={(t) => updateField('lym', t)} 
+                    keyboardType="decimal-pad"
+                  />
                   <View style={styles.spacer} />
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Platelets" value={form.platelets} onChangeText={(t) => updateField('platelets', t)} />
+                  <TextInput 
+                    style={[styles.input, styles.flex1]} 
+                    placeholderTextColor={theme.colors.textSecondary} 
+                    placeholder="Platelets" 
+                    value={form.platelets} 
+                    onChangeText={(t) => updateField('platelets', t)} 
+                    keyboardType="number-pad"
+                  />
                 </View>
-              </Animated.View>
+                <View style={styles.row}>
+                  <TextInput 
+                    style={[styles.input, styles.flex1]} 
+                    placeholderTextColor={theme.colors.textSecondary} 
+                    placeholder="PT" 
+                    value={form.pt} 
+                    onChangeText={(t) => updateField('pt', t)} 
+                    keyboardType="decimal-pad"
+                  />
+                  <View style={styles.spacer} />
+                  <TextInput 
+                    style={[styles.input, styles.flex1]} 
+                    placeholderTextColor={theme.colors.textSecondary} 
+                    placeholder="INR" 
+                    value={form.inr} 
+                    onChangeText={(t) => updateField('inr', t)} 
+                    keyboardType="decimal-pad"
+                  />
+                </View></Animated.View>
             )}
           </View>
 

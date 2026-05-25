@@ -40,6 +40,9 @@ const PatientDetail = ({ route, navigation }) => {
   const patient = patients.find(p => p.recordID === initialPatient.recordID) || initialPatient;
 
   const scrollRef = React.useRef(null);
+  const tcRef = useRef(null);
+  const plateletsRef = useRef(null);
+  const inrRef = useRef(null);
 
   // Modals state
   const [activeModal, setActiveModal] = useState(null); // 'diagnosis' | 'medication' | 'labs' | 'soap'
@@ -910,19 +913,53 @@ const PatientDetail = ({ route, navigation }) => {
               <View style={styles.labGrid}>
                 <View style={styles.labCell}>
                   <Text style={styles.labCellLabel}>Hb (Hemoglobin)</Text>
-                  <TextInput style={styles.modalInput} placeholder="e.g. 14.2" value={newLab.hb} onChangeText={(t) => setNewLab({ ...newLab, hb: t })} />
+                  <TextInput 
+                    style={styles.modalInput} 
+                    placeholder="e.g. 14.2" 
+                    value={newLab.hb} 
+                    onChangeText={(t) => setNewLab({ ...newLab, hb: t })} 
+                    keyboardType="decimal-pad"
+                    returnKeyType="next"
+                    onSubmitEditing={() => tcRef.current?.focus()}
+                  />
                 </View>
                 <View style={styles.labCell}>
                   <Text style={styles.labCellLabel}>TC (Total Count)</Text>
-                  <TextInput style={styles.modalInput} placeholder="e.g. 8500" value={newLab.tc} onChangeText={(t) => setNewLab({ ...newLab, tc: t })} />
+                  <TextInput 
+                    ref={tcRef}
+                    style={styles.modalInput} 
+                    placeholder="e.g. 8500" 
+                    value={newLab.tc} 
+                    onChangeText={(t) => setNewLab({ ...newLab, tc: t })} 
+                    keyboardType="number-pad"
+                    returnKeyType="next"
+                    onSubmitEditing={() => plateletsRef.current?.focus()}
+                  />
                 </View>
                 <View style={styles.labCell}>
                   <Text style={styles.labCellLabel}>Platelets</Text>
-                  <TextInput style={styles.modalInput} placeholder="e.g. 240000" value={newLab.platelets} onChangeText={(t) => setNewLab({ ...newLab, platelets: t })} />
+                  <TextInput 
+                    ref={plateletsRef}
+                    style={styles.modalInput} 
+                    placeholder="e.g. 240000" 
+                    value={newLab.platelets} 
+                    onChangeText={(t) => setNewLab({ ...newLab, platelets: t })} 
+                    keyboardType="number-pad"
+                    returnKeyType="next"
+                    onSubmitEditing={() => inrRef.current?.focus()}
+                  />
                 </View>
                 <View style={styles.labCell}>
                   <Text style={styles.labCellLabel}>INR</Text>
-                  <TextInput style={styles.modalInput} placeholder="e.g. 1.0" value={newLab.inr} onChangeText={(t) => setNewLab({ ...newLab, inr: t })} />
+                  <TextInput 
+                    ref={inrRef}
+                    style={styles.modalInput} 
+                    placeholder="e.g. 1.0" 
+                    value={newLab.inr} 
+                    onChangeText={(t) => setNewLab({ ...newLab, inr: t })} 
+                    keyboardType="decimal-pad"
+                    returnKeyType="done"
+                  />
                 </View>
               </View>
               <View style={styles.modalButtonGroup}>

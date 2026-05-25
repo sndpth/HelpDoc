@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, StatusBar, Platform } from 'react-native';
 import { ChevronLeft, Plus, X, Heart, Thermometer, Activity, Wind, Info, Calendar, Clock, AlertCircle } from 'lucide-react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -195,6 +195,12 @@ const VitalsScreen = ({ route, navigation }) => {
   const [activeCategory, setActiveCategory] = useState(VITAL_TYPES.BP);
   const [showChart, setShowChart] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const bpDiastolicRef = useRef(null);
+  const tempRef = useRef(null);
+  const hrRef = useRef(null);
+  const rrRef = useRef(null);
+  const spo2Ref = useRef(null);
+  const sugarRef = useRef(null);
 
   const progress = useSharedValue(0);
 
@@ -555,62 +561,81 @@ const VitalsScreen = ({ route, navigation }) => {
             <TextInput 
               style={[styles.modalInput, { flex: 1 }]} 
               placeholder="Systolic (e.g. 120)" 
-              keyboardType="numeric" 
+              keyboardType="number-pad" 
               value={newVitals.bpSystolic}
               onChangeText={t => setNewVitals(prev => ({ ...prev, bpSystolic: t }))}
+              returnKeyType="next"
+              onSubmitEditing={() => bpDiastolicRef.current?.focus()}
             />
             <TextInput 
+              ref={bpDiastolicRef}
               style={[styles.modalInput, { flex: 1 }]} 
               placeholder="Diastolic (e.g. 80)" 
-              keyboardType="numeric" 
+              keyboardType="number-pad" 
               value={newVitals.bpDiastolic}
               onChangeText={t => setNewVitals(prev => ({ ...prev, bpDiastolic: t }))}
+              returnKeyType="next"
+              onSubmitEditing={() => tempRef.current?.focus()}
             />
           </View>
 
           <Text style={styles.inputLabel}>Temperature (°C)</Text>
           <TextInput 
+            ref={tempRef}
             style={styles.modalInput} 
             placeholder="e.g. 37.0" 
-            keyboardType="numeric" 
+            keyboardType="decimal-pad" 
             value={newVitals.temp}
             onChangeText={t => setNewVitals(prev => ({ ...prev, temp: t }))}
+            returnKeyType="next"
+            onSubmitEditing={() => hrRef.current?.focus()}
           />
 
           <Text style={styles.inputLabel}>Heart Rate (bpm)</Text>
           <TextInput 
+            ref={hrRef}
             style={styles.modalInput} 
             placeholder="e.g. 75" 
-            keyboardType="numeric" 
+            keyboardType="number-pad" 
             value={newVitals.hr}
             onChangeText={t => setNewVitals(prev => ({ ...prev, hr: t }))}
+            returnKeyType="next"
+            onSubmitEditing={() => rrRef.current?.focus()}
           />
 
           <Text style={styles.inputLabel}>Respiratory Rate (bpm)</Text>
           <TextInput 
+            ref={rrRef}
             style={styles.modalInput} 
             placeholder="e.g. 16" 
-            keyboardType="numeric" 
+            keyboardType="number-pad" 
             value={newVitals.rr}
             onChangeText={t => setNewVitals(prev => ({ ...prev, rr: t }))}
+            returnKeyType="next"
+            onSubmitEditing={() => spo2Ref.current?.focus()}
           />
 
           <Text style={styles.inputLabel}>Oxygen Saturation SpO2 (%)</Text>
           <TextInput 
+            ref={spo2Ref}
             style={styles.modalInput} 
             placeholder="e.g. 98" 
-            keyboardType="numeric" 
+            keyboardType="number-pad" 
             value={newVitals.spo2}
             onChangeText={t => setNewVitals(prev => ({ ...prev, spo2: t }))}
+            returnKeyType="next"
+            onSubmitEditing={() => sugarRef.current?.focus()}
           />
 
           <Text style={styles.inputLabel}>Blood Sugar (mg/dL)</Text>
           <TextInput 
+            ref={sugarRef}
             style={styles.modalInput} 
             placeholder="e.g. 100" 
-            keyboardType="numeric" 
+            keyboardType="number-pad" 
             value={newVitals.sugar}
             onChangeText={t => setNewVitals(prev => ({ ...prev, sugar: t }))}
+            returnKeyType="done"
           />
 
           <AnimatedPressable style={styles.modalSubmitBtn} onPress={handleAddVitalsSubmit}>

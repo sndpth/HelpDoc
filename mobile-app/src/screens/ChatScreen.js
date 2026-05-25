@@ -280,6 +280,8 @@ const ChatScreen = ({ route, navigation }) => {
             contentContainerStyle={styles.listContent}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
             onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
           />
         )}
 

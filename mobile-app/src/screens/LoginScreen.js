@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Modal, ActivityIndicator } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Modal, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Stethoscope, Eye, EyeOff, Lock, User, Settings, Globe, X } from 'lucide-react-native';
 import Animated, { FadeIn, ZoomIn, SlideInDown, useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
 import AnimatedPressable from '../components/AnimatedPressable';
@@ -10,6 +10,7 @@ import ClinicalCanvas from '../components/ClinicalCanvas';
 
 const LoginScreen = () => {
   const { login, register, apiUrl, setApiUrl } = useStore();
+  const passwordRef = useRef(null);
   const [isRegister, setIsRegister] = useState(false);
   
   const [phone, setPhone] = useState('');
@@ -120,7 +121,8 @@ const LoginScreen = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           
           {/* Logo & Header */}
           <View style={styles.logoSection}>
@@ -235,6 +237,10 @@ const LoginScreen = () => {
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
                 autoCapitalize="none"
+                textContentType="telephoneNumber"
+                autoComplete="tel"
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
               />
             </View>
 
@@ -244,6 +250,7 @@ const LoginScreen = () => {
                 <Lock size={18} color={theme.colors.primary} />
               </View>
               <TextInput
+                ref={passwordRef}
                 style={styles.input}
                 placeholder="Password"
                 placeholderTextColor={theme.colors.textSecondary}
@@ -251,6 +258,9 @@ const LoginScreen = () => {
                 value={password}
                 onChangeText={setPassword}
                 autoCapitalize="none"
+                textContentType="password"
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
               />
               <TouchableOpacity 
                 style={styles.eyeBtn} 
@@ -297,6 +307,7 @@ const LoginScreen = () => {
           </View>
 
         </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
       {/* Settings Modal */}
@@ -320,6 +331,9 @@ const LoginScreen = () => {
               onChangeText={setInputUrl}
               autoCapitalize="none"
               autoCorrect={false}
+              keyboardType="url"
+              returnKeyType="done"
+              onSubmitEditing={handleSaveSettings}
             />
           </View>
           <Text style={styles.infoNote}>
