@@ -171,17 +171,8 @@ export default function App() {
         useStore.getState().syncOfflineQueue();
       }, 30000);
       
-      let host = null;
       const apiUrl = useStore.getState().apiUrl;
-      if (apiUrl) {
-        try {
-          const match = apiUrl.match(/https?:\/\/([^:]+)/);
-          if (match) host = match[1];
-        } catch (e) {
-          console.log('Error parsing host for socket:', e);
-        }
-      }
-      initSocket(host);
+      initSocket(apiUrl);
       
       return () => {
         clearInterval(syncInterval);

@@ -4,16 +4,17 @@ import Constants from 'expo-constants';
 
 let socket;
 
-export const initSocket = (serverIp) => {
+export const initSocket = (serverUrl) => {
   if (socket) socket.disconnect();
 
-  let ip = serverIp;
-  if (!ip) {
+  let url = serverUrl;
+  if (!url) {
     const hostUri = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost;
-    ip = hostUri ? hostUri.split(':')[0] : 'localhost';
+    const ip = hostUri ? hostUri.split(':')[0] : 'localhost';
+    url = `http://${ip}:3000`;
   }
 
-  const url = `http://${ip}:3000`;
+  console.log('Initializing socket connection to:', url);
   socket = io(url);
 
   const { userProfile, addMessage } = useStore.getState();
