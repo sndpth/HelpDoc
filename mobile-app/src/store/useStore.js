@@ -13,7 +13,7 @@ const DEFAULT_API_URL = getApiUrl();
 
 const api = axios.create({
   baseURL: `${DEFAULT_API_URL}/api`,
-  timeout: 10000,
+  timeout: 30000,
 });
 
 api.interceptors.request.use(
@@ -22,6 +22,9 @@ api.interceptors.request.use(
       const state = useStore.getState();
       const customUrl = state.apiUrl || DEFAULT_API_URL;
       config.baseURL = `${customUrl}/api`;
+      
+      // Inject standard User-Agent to prevent Cloudflare/Hugging Face from challenging/blocking the request
+      config.headers['User-Agent'] = 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1';
       
       const token = state.token;
       if (token) {

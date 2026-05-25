@@ -15,7 +15,9 @@ export const initSocket = (serverUrl) => {
   }
 
   console.log('Initializing socket connection to:', url);
-  socket = io(url);
+  socket = io(url, {
+    transports: ['websocket', 'polling']
+  });
 
   const { userProfile, addMessage } = useStore.getState();
 

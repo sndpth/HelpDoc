@@ -247,7 +247,7 @@ const ChatScreen = ({ route, navigation }) => {
       <KeyboardAvoidingViewWrapper 
         style={styles.container} 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
         <View style={styles.header}>
           <AnimatedPressable 

@@ -10,6 +10,7 @@ import ClinicalCanvas from '../components/ClinicalCanvas';
 import AnimatedPressable from '../components/AnimatedPressable';
 import AnimatedMount from '../components/AnimatedMount';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useHeaderHeight } from '@react-navigation/elements';
 
 const KeyboardAvoidingViewWrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
 
@@ -21,6 +22,7 @@ const AddPatientScreen = ({ navigation, route }) => {
   
   const insets = useSafeAreaInsets();
   const [initialBottomInset] = useState(insets.bottom);
+  const headerHeight = useHeaderHeight();
   
   const [form, setForm] = useState(() => {
     if (patient) {
@@ -184,7 +186,7 @@ const AddPatientScreen = ({ navigation, route }) => {
       <KeyboardAvoidingViewWrapper 
         style={styles.container} 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
       >
         <ScrollView 
           ref={scrollViewRef}
