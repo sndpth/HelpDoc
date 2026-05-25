@@ -5,7 +5,7 @@ import Animated, { FadeIn, ZoomIn, SlideInDown, useSharedValue, useAnimatedStyle
 import AnimatedPressable from '../components/AnimatedPressable';
 import BottomSheet from '../components/BottomSheet';
 import useStore from '../store/useStore';
-import { theme } from '../constants/theme';
+import { theme, getSpringConfig } from '../constants/theme';
 import ClinicalCanvas from '../components/ClinicalCanvas';
 
 const LoginScreen = () => {
@@ -117,7 +117,7 @@ const LoginScreen = () => {
       </View>
 
       <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
         style={styles.keyboardView}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -134,7 +134,15 @@ const LoginScreen = () => {
           </View>
 
           {/* Form Card */}
-          <Animated.View entering={SlideInDown.duration(600).springify().damping(15)} style={styles.formCard}>
+          <Animated.View 
+            entering={SlideInDown.duration(600)
+              .springify()
+              .damping(getSpringConfig({ damping: 25 }).damping)
+              .stiffness(getSpringConfig({ stiffness: 150 }).stiffness)
+              .mass(getSpringConfig({ mass: 1 }).mass)
+            } 
+            style={styles.formCard}
+          >
             <Text style={styles.welcomeText}>{isRegister ? 'Create Account' : 'Welcome'}</Text>
             <Text style={styles.signInText}>
               {isRegister ? 'Register as a new clinical practitioner' : 'Sign in to your practitioner account'}

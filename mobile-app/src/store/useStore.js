@@ -6,12 +6,6 @@ import axios from 'axios';
 import Constants from 'expo-constants';
 
 const getApiUrl = () => {
-  // Extract host IP dynamically from Metro bundler address
-  const hostUri = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost;
-  if (hostUri) {
-    const ip = hostUri.split(':')[0];
-    return `http://${ip}:3000`;
-  }
   return 'https://sndpth-doctorsaap-backend.hf.space';
 };
 
@@ -5889,10 +5883,21 @@ const useStore = create(
       version: 1,
       merge: (persistedState, currentState) => {
         if (!persistedState) return currentState;
-        return {
+        const merged = {
           ...currentState,
           ...persistedState,
         };
+        // Reset local development IP urls to production url to avoid stale dev configurations
+        if (merged.apiUrl && (
+          merged.apiUrl.includes('192.168.') || 
+          merged.apiUrl.includes('localhost') || 
+          merged.apiUrl.includes('127.0.0.1') || 
+          merged.apiUrl.includes('10.') || 
+          !merged.apiUrl.startsWith('https://')
+        )) {
+          merged.apiUrl = 'https://sndpth-doctorsaap-backend.hf.space';
+        }
+        return merged;
       },
     }
   )

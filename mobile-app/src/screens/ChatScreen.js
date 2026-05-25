@@ -12,6 +12,8 @@ import { joinRoom, leaveRoom, sendRoomMessage } from '../services/socket';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+const KeyboardAvoidingViewWrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
+
 
 const ChatScreen = ({ route, navigation }) => {
   const { chatId, doctorName } = route.params || { chatId: '1', doctorName: 'Consultation' };
@@ -24,6 +26,7 @@ const ChatScreen = ({ route, navigation }) => {
   } = useStore();
 
   const insets = useSafeAreaInsets();
+  const [initialBottomInset] = useState(insets.bottom);
   const flatListRef = React.useRef(null);
   const [text, setText] = useState('');
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
@@ -241,10 +244,10 @@ const ChatScreen = ({ route, navigation }) => {
 
   return (
     <ClinicalCanvas style={styles.canvas}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingViewWrapper 
         style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={insets.top}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
         <View style={styles.header}>
           <AnimatedPressable 
@@ -298,7 +301,7 @@ const ChatScreen = ({ route, navigation }) => {
         <View style={[
           styles.inputArea,
           {
-            paddingBottom: keyboardVisible ? theme.spacing.md : Math.max(insets.bottom, theme.spacing.md)
+            paddingBottom: keyboardVisible ? theme.spacing.md : Math.max(initialBottomInset, theme.spacing.md)
           }
         ]}>
           <AnimatedPressable 
@@ -403,7 +406,7 @@ const ChatScreen = ({ route, navigation }) => {
             )}
           </View>
         </Modal>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingViewWrapper>
     </ClinicalCanvas>
   );
 };

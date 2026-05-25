@@ -9,12 +9,18 @@ import MediaAttachment from '../components/MediaAttachment';
 import ClinicalCanvas from '../components/ClinicalCanvas';
 import AnimatedPressable from '../components/AnimatedPressable';
 import AnimatedMount from '../components/AnimatedMount';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const KeyboardAvoidingViewWrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
 
 const AddPatientScreen = ({ navigation, route }) => {
   const { patient } = route.params || {};
   const isEditing = !!patient;
 
   const { addPatient, updatePatient } = useStore();
+  
+  const insets = useSafeAreaInsets();
+  const [initialBottomInset] = useState(insets.bottom);
   
   const [form, setForm] = useState(() => {
     if (patient) {
@@ -170,9 +176,9 @@ const AddPatientScreen = ({ navigation, route }) => {
 
   return (
     <ClinicalCanvas style={styles.canvas}>
-      <KeyboardAvoidingView 
+      <KeyboardAvoidingViewWrapper 
         style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
         <ScrollView 
@@ -468,7 +474,7 @@ const AddPatientScreen = ({ navigation, route }) => {
         </ScrollView>
 
         {/* Fixed Save Button Footer */}
-        <View style={styles.fixedFooter}>
+        <View style={[styles.fixedFooter, { paddingBottom: Math.max(initialBottomInset, theme.spacing.md) }]}>
           <AnimatedPressable 
             style={[styles.saveBtn, saving && styles.saveBtnDisabled]} 
             onPress={handleSave}
@@ -483,7 +489,7 @@ const AddPatientScreen = ({ navigation, route }) => {
             )}
           </AnimatedPressable>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingViewWrapper>
 
       {datePickerField && (
         <DateTimePicker
@@ -498,7 +504,7 @@ const AddPatientScreen = ({ navigation, route }) => {
 };
 
 const styles = StyleSheet.create({
-  canvas: { flex: 1, backgroundColor: theme.colors.background },
+  canvas: { flex: 1, backgroundColor: theme.colors.background, paddingBottom: 0 },
   container: { flex: 1 },
   scroll: { padding: theme.spacing.lg, paddingBottom: 100 },
   card: { 
