@@ -141,7 +141,7 @@ const OPDSchedulingScreen = ({ navigation }) => {
     };
   });
 
-  const filteredAppointments = upcomingAppointments.filter(app => {
+  const filteredAppointments = (upcomingAppointments || []).filter(app => {
     // Return appointments matching selected date
     return app.date === selectedDateFilter;
   });
@@ -204,7 +204,7 @@ const OPDSchedulingScreen = ({ navigation }) => {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {loading && upcomingAppointments.length === 0 ? (
+        {loading && (!upcomingAppointments || upcomingAppointments.length === 0) ? (
           <View style={styles.loaderBox}>
             <ActivityIndicator size="small" color={theme.colors.primary} />
             <Text style={styles.loaderText}>Loading scheduled consultations...</Text>
@@ -228,7 +228,7 @@ const OPDSchedulingScreen = ({ navigation }) => {
                         style={styles.patientLink}
                       >
                         <View style={styles.avatar}>
-                          <Text style={styles.avatarText}>{app.patient?.fullName.charAt(0)}</Text>
+                          <Text style={styles.avatarText}>{app.patient?.fullName ? app.patient.fullName.charAt(0) : '?'}</Text>
                         </View>
                         <View style={styles.patientMeta}>
                           <Text style={styles.patientName}>{app.patient?.fullName}</Text>
