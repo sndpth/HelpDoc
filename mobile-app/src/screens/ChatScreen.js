@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Image, Alert, Keyboard, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, StyleSheet, Platform, Modal, ActivityIndicator, Image, Alert, Keyboard, ScrollView } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, { FadeInUp, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import useStore from '../store/useStore';
 import EMRCard from '../components/EMRCard';
@@ -12,8 +13,6 @@ import { joinRoom, leaveRoom, sendRoomMessage } from '../services/socket';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-const KeyboardAvoidingViewWrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
-
 
 const ChatScreen = ({ route, navigation }) => {
   const { chatId, doctorName } = route.params || { chatId: '1', doctorName: 'Consultation' };
@@ -26,7 +25,6 @@ const ChatScreen = ({ route, navigation }) => {
   } = useStore();
 
   const insets = useSafeAreaInsets();
-  const [initialBottomInset] = useState(insets.bottom);
   const flatListRef = React.useRef(null);
   const [text, setText] = useState('');
   const [showAttachmentModal, setShowAttachmentModal] = useState(false);
@@ -61,26 +59,18 @@ const ChatScreen = ({ route, navigation }) => {
   });
 
   useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardWillShow', () => {
-      setKeyboardVisible(true);
-    });
-    const hideSubscription = Keyboard.addListener('keyboardWillHide', () => {
-      setKeyboardVisible(false);
-    });
-    
-    // Android listener fallback
-    const showSubscriptionAndroid = Keyboard.addListener('keyboardDidShow', () => {
-      if (Platform.OS === 'android') setKeyboardVisible(true);
-    });
-    const hideSubscriptionAndroid = Keyboard.addListener('keyboardDidHide', () => {
-      if (Platform.OS === 'android') setKeyboardVisible(false);
-    });
+    const showSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
 
     return () => {
       showSubscription.remove();
       hideSubscription.remove();
-      showSubscriptionAndroid.remove();
-      hideSubscriptionAndroid.remove();
     };
   }, []);
 
@@ -243,11 +233,11 @@ const ChatScreen = ({ route, navigation }) => {
   };
 
   return (
-    <ClinicalCanvas style={styles.canvas}>
-      <KeyboardAvoidingViewWrapper 
-        style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+    <ClinicalCanvas style={[styles.canvas, { paddingBottom: 0 }]}>
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={styles.container}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <View style={styles.header}>
           <AnimatedPressable 
@@ -277,6 +267,7 @@ const ChatScreen = ({ route, navigation }) => {
             data={messages}
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
+            style={{ flex: 1 }}
             contentContainerStyle={styles.listContent}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
             onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
@@ -300,12 +291,7 @@ const ChatScreen = ({ route, navigation }) => {
           </View>
         )}
 
-        <View style={[
-          styles.inputArea,
-          {
-            paddingBottom: keyboardVisible ? theme.spacing.md : Math.max(initialBottomInset, theme.spacing.md)
-          }
-        ]}>
+        <View style={[styles.inputArea, { paddingBottom: keyboardVisible ? theme.spacing.md : Math.max(insets.bottom, theme.spacing.md) }]}>
           <AnimatedPressable 
             style={styles.attachBtn} 
             onPress={() => setShowAttachmentModal(true)}
@@ -408,7 +394,7 @@ const ChatScreen = ({ route, navigation }) => {
             )}
           </View>
         </Modal>
-      </KeyboardAvoidingViewWrapper>
+      </KeyboardAvoidingView>
     </ClinicalCanvas>
   );
 };

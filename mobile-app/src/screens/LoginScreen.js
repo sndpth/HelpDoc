@@ -1,17 +1,21 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, StatusBar, KeyboardAvoidingView, Platform, ScrollView, Modal, ActivityIndicator, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import { Stethoscope, Eye, EyeOff, Lock, User, Settings, Globe, X } from 'lucide-react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, StatusBar, Platform, ActivityIndicator } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { Stethoscope, Eye, EyeOff, Lock, User, Settings, Globe } from 'lucide-react-native';
 import Animated, { FadeIn, ZoomIn, SlideInDown, useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
 import AnimatedPressable from '../components/AnimatedPressable';
 import BottomSheet from '../components/BottomSheet';
 import useStore from '../store/useStore';
-import { theme, getSpringConfig } from '../constants/theme';
+import { theme } from '../constants/theme';
 import ClinicalCanvas from '../components/ClinicalCanvas';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const LoginScreen = () => {
   const { login, register, apiUrl, setApiUrl } = useStore();
   const passwordRef = useRef(null);
   const [isRegister, setIsRegister] = useState(false);
+  const insets = useSafeAreaInsets();
+
   
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -99,7 +103,7 @@ const LoginScreen = () => {
   };
 
   return (
-    <ClinicalCanvas style={styles.container}>
+    <ClinicalCanvas style={[styles.container, { paddingBottom: 0 }]}>
       <StatusBar barStyle="dark-content" />
       
       {/* Absolute settings gear button */}
@@ -117,12 +121,13 @@ const LoginScreen = () => {
         </AnimatedPressable>
       </View>
 
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-        style={styles.keyboardView}
+      <KeyboardAwareScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, theme.spacing.xxl) }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bottomOffset={40}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           
           {/* Logo & Header */}
           <View style={styles.logoSection}>
@@ -136,15 +141,7 @@ const LoginScreen = () => {
           </View>
 
           {/* Form Card */}
-          <Animated.View 
-            entering={SlideInDown.duration(600)
-              .springify()
-              .damping(getSpringConfig({ damping: 25 }).damping)
-              .stiffness(getSpringConfig({ stiffness: 150 }).stiffness)
-              .mass(getSpringConfig({ mass: 1 }).mass)
-            } 
-            style={styles.formCard}
-          >
+          <Animated.View entering={SlideInDown.duration(600).springify().damping(15)} style={styles.formCard}>
             <Text style={styles.welcomeText}>{isRegister ? 'Create Account' : 'Welcome'}</Text>
             <Text style={styles.signInText}>
               {isRegister ? 'Register as a new clinical practitioner' : 'Sign in to your practitioner account'}
@@ -306,9 +303,7 @@ const LoginScreen = () => {
             </Text>
           </View>
 
-        </ScrollView>
-        </TouchableWithoutFeedback>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
 
       {/* Settings Modal */}
       <BottomSheet
@@ -365,7 +360,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  keyboardView: {
+  scrollContainer: {
     flex: 1,
   },
   headerActions: {

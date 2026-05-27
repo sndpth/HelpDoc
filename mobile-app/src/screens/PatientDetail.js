@@ -744,7 +744,7 @@ const PatientDetail = ({ route, navigation }) => {
         title="Diagnosis Detail"
         height="70%"
       >
-        <ScrollView>
+        <ScrollView style={{ flex: 1 }}>
           <View style={styles.detailCard}>
             <Text style={styles.detailLabel}>Primary Diagnosis</Text>
             <Text style={styles.detailText}>{patient.diagnosis}</Text>
@@ -847,7 +847,7 @@ const PatientDetail = ({ route, navigation }) => {
           </View>
         )}
 
-        <ScrollView>
+        <ScrollView style={{ flex: 1 }}>
           {(patient.medications && patient.medications.length > 0) ? (
             patient.medications.map((med, idx) => (
               <TouchableOpacity
@@ -886,7 +886,7 @@ const PatientDetail = ({ route, navigation }) => {
         title="Investigation Reports"
         height="85%"
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           
           <Text style={styles.subSectionTitle}>Imaging Studies</Text>
           <View style={styles.detailCard}>
@@ -994,7 +994,7 @@ const PatientDetail = ({ route, navigation }) => {
         title="SOAP Note"
         height="85%"
       >
-        <ScrollView style={{ paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1, paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
           {['Subjective', 'Objective', 'Assessment', 'Plan'].map((section) => (
             <View key={section} style={{ marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
@@ -1128,7 +1128,7 @@ const PatientDetail = ({ route, navigation }) => {
             )}
 
             <Text style={styles.subSectionTitle}>Dose Administration History</Text>
-            <ScrollView>
+            <ScrollView style={{ flex: 1 }}>
               {(() => {
                 const liveMed = (patient.medications || []).find(m => m.id === selectedMedForMar.id);
                 const admins = liveMed?.administrations || [];
@@ -1169,7 +1169,7 @@ const PatientDetail = ({ route, navigation }) => {
             </ScrollView>
           </View>
         ) : (
-          <ScrollView>
+          <ScrollView style={{ flex: 1 }}>
             <Text style={{ fontSize: 12, color: theme.colors.textSecondary, marginBottom: 8 }}>
               Select an active medication to view history or record administration:
             </Text>
@@ -1209,7 +1209,7 @@ const PatientDetail = ({ route, navigation }) => {
         title="Shift Handover Sheets"
         height="85%"
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           {isNurse && (
             <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 16 }}>
               <Text style={{ fontWeight: '800', fontSize: 13, color: '#374151', marginBottom: 8 }}>
@@ -1335,7 +1335,7 @@ const PatientDetail = ({ route, navigation }) => {
         title="Nursing Care Plans"
         height="85%"
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           {isNurse && (
             selectedCarePlanForEval ? (
               <View style={{ backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 16 }}>

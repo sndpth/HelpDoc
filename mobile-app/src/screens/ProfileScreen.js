@@ -110,12 +110,13 @@ const ProfileScreen = ({ navigation }) => {
         
         <Text style={styles.userName}>Dr. {userProfile?.name}</Text>
         <Text style={styles.userSpecialty}>{userProfile?.specialty}</Text>
-        <Text style={styles.userHospital}>{userProfile?.hospital || 'T.U. Teaching Hospital'}</Text>
-
+        
         <View style={styles.badgeRow}>
           <Shield size={12} color="#10B981" />
           <Text style={styles.badgeText}>Verified Clinical Specialist</Text>
         </View>
+
+        <Text style={styles.userHospital}>{userProfile?.hospital || 'T.U. Teaching Hospital'}</Text>
       </Animated.View>
 
       <Animated.ScrollView 
@@ -435,7 +436,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#E0F2FE',
     fontWeight: '500',
-    marginBottom: theme.spacing.md,
+    marginBottom: 0,
   },
   badgeRow: {
     flexDirection: 'row',
@@ -444,6 +445,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.xl,
     paddingVertical: 6,
     paddingHorizontal: 12,
+    marginBottom: theme.spacing.sm,
   },
   badgeText: {
     fontSize: 10,

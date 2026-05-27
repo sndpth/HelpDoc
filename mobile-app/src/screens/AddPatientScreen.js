@@ -1,28 +1,18 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
-import { ChevronDown, ChevronRight, Save } from 'lucide-react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+// DateTimePicker and other EMR components
 import DateTimePicker from '@react-native-community/datetimepicker';
 import useStore from '../store/useStore';
 import { theme } from '../constants/theme';
 import MediaAttachment from '../components/MediaAttachment';
-import ClinicalCanvas from '../components/ClinicalCanvas';
 import AnimatedPressable from '../components/AnimatedPressable';
-import AnimatedMount from '../components/AnimatedMount';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHeaderHeight } from '@react-navigation/elements';
-
-const KeyboardAvoidingViewWrapper = Platform.OS === 'ios' ? KeyboardAvoidingView : View;
 
 const AddPatientScreen = ({ navigation, route }) => {
   const { patient } = route.params || {};
   const isEditing = !!patient;
 
   const { addPatient, updatePatient } = useStore();
-  
-  const insets = useSafeAreaInsets();
-  const [initialBottomInset] = useState(insets.bottom);
-  const headerHeight = useHeaderHeight();
   
   const [form, setForm] = useState(() => {
     if (patient) {
@@ -100,26 +90,8 @@ const AddPatientScreen = ({ navigation, route }) => {
   });
 
   const [datePickerField, setDatePickerField] = useState(null); // track which field is being edited
-  const scrollViewRef = useRef(null);
-  const patientIdRef = useRef(null);
-  const fileNoRef = useRef(null);
-  const ageRef = useRef(null);
-  const genderRef = useRef(null);
-  const addressRef = useRef(null);
+  // Form save progress state
   const [saving, setSaving] = useState(false);
-  const [collapsed, setCollapsed] = useState({
-    demographics: false,
-    location: false,
-    timeline: false,
-    clinical: true,
-    operative: true,
-    labs: true,
-    attachments: true,
-  });
-
-  const toggleCollapsed = (section) => {
-    setCollapsed(prev => ({ ...prev, [section]: !prev[section] }));
-  };
 
   const handleSave = () => {
     setSaving(true);
@@ -182,19 +154,15 @@ const AddPatientScreen = ({ navigation, route }) => {
   );
 
   return (
-    <ClinicalCanvas style={styles.canvas}>
-      <KeyboardAvoidingViewWrapper 
-        style={styles.container} 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+    <View style={styles.screenWrapper}>
+      <KeyboardAwareScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scroll} 
+        showsVerticalScrollIndicator={false}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={40}
       >
-        <ScrollView 
-          ref={scrollViewRef}
-          contentContainerStyle={styles.scroll} 
-          showsVerticalScrollIndicator={false}
-          keyboardDismissMode="on-drag"
-          keyboardShouldPersistTaps="handled"
-        >
           {/* Admission Type Selection */}
           <View style={styles.segmentedContainer}>
             <TouchableOpacity 
@@ -213,429 +181,172 @@ const AddPatientScreen = ({ navigation, route }) => {
 
           {/* Patient Clinical Identifiers */}
           <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.collapsibleHeader} 
-              onPress={() => toggleCollapsed('demographics')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.sectionTitle}>Demographics & Identifiers</Text>
-              {collapsed.demographics ? (
-                <ChevronRight size={18} color={theme.colors.primary} />
-              ) : (
-                <ChevronDown size={18} color={theme.colors.primary} />
-              )}
-            </TouchableOpacity>
-            {!collapsed.demographics && (
-              <Animated.View entering={FadeInUp.duration(200)}>
-                <TextInput 
-                  style={styles.input} 
-                  placeholderTextColor={theme.colors.textSecondary} 
-                  placeholder="Patient Full Name" 
-                  value={form.fullName} 
-                  onChangeText={(t) => updateField('fullName', t)} 
-                  autoCapitalize="words"
-                  returnKeyType="next"
-                  onSubmitEditing={() => patientIdRef.current?.focus()}
-                />
-                
-                <View style={styles.row}>
-                  <TextInput 
-                    ref={patientIdRef}
-                    style={[styles.input, styles.flex1]} 
-                    placeholderTextColor={theme.colors.textSecondary} 
-                    placeholder="Patient ID (e.g. 81552753)" 
-                    value={form.patientId} 
-                    onChangeText={(t) => updateField('patientId', t)} 
-                    keyboardType="number-pad"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="next"
-                    onSubmitEditing={() => fileNoRef.current?.focus()}
-                  />
-                  <View style={styles.spacer} />
-                  <TextInput 
-                    ref={fileNoRef}
-                    style={[styles.input, styles.flex1]} 
-                    placeholderTextColor={theme.colors.textSecondary} 
-                    placeholder="File No (e.g. F-8812)" 
-                    value={form.fileNo} 
-                    onChangeText={(t) => updateField('fileNo', t)} 
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="next"
-                    onSubmitEditing={() => ageRef.current?.focus()}
-                  />
-                </View>
+            <Text style={styles.sectionTitle}>Demographics & Identifiers</Text>
+            <View>
+              <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Patient Full Name" value={form.fullName} onChangeText={(t) => updateField('fullName', t)} />
+              
+              <View style={styles.row}>
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Patient ID (e.g. 81552753)" value={form.patientId} onChangeText={(t) => updateField('patientId', t)} />
+                <View style={styles.spacer} />
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="File No (e.g. F-8812)" value={form.fileNo} onChangeText={(t) => updateField('fileNo', t)} />
+              </View>
 
-                <View style={styles.row}>
-                  <TextInput 
-                    ref={ageRef}
-                    style={[styles.input, styles.flex1]} 
-                    placeholderTextColor={theme.colors.textSecondary} 
-                    placeholder="Age" 
-                    keyboardType="number-pad" 
-                    value={form.age.toString()} 
-                    onChangeText={(t) => updateField('age', t)} 
-                    returnKeyType="next"
-                    onSubmitEditing={() => genderRef.current?.focus()}
-                  />
-                  <View style={styles.spacer} />
-                  <TextInput 
-                    ref={genderRef}
-                    style={[styles.input, styles.flex1]} 
-                    placeholderTextColor={theme.colors.textSecondary} 
-                    placeholder="Gender" 
-                    value={form.gender} 
-                    onChangeText={(t) => updateField('gender', t)} 
-                    autoCapitalize="words"
-                    returnKeyType="next"
-                    onSubmitEditing={() => addressRef.current?.focus()}
-                  />
-                </View>
-                <TextInput 
-                  ref={addressRef}
-                  style={styles.input} 
-                  placeholderTextColor={theme.colors.textSecondary} 
-                  placeholder="Address" 
-                  value={form.address} 
-                  onChangeText={(t) => updateField('address', t)} 
-                  autoCapitalize="words"
-                  returnKeyType="done"
-                />
-              </Animated.View>
-            )}
+              <View style={styles.row}>
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Age" keyboardType="numeric" value={form.age.toString()} onChangeText={(t) => updateField('age', t)} />
+                <View style={styles.spacer} />
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Gender" value={form.gender} onChangeText={(t) => updateField('gender', t)} />
+              </View>
+              <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Address" value={form.address} onChangeText={(t) => updateField('address', t)} />
+            </View>
           </View>
 
           {form.type === 'IPD' ? (
             <>
               {/* Hospital Ward & Location Details */}
               <View style={styles.card}>
-                <TouchableOpacity 
-                  style={styles.collapsibleHeader} 
-                  onPress={() => toggleCollapsed('location')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.sectionTitle}>Ward & Location Details</Text>
-                  {collapsed.location ? (
-                    <ChevronRight size={18} color={theme.colors.primary} />
-                  ) : (
-                    <ChevronDown size={18} color={theme.colors.primary} />
-                  )}
-                </TouchableOpacity>
-                {!collapsed.location && (
-                  <Animated.View entering={FadeInUp.duration(200)}>
-                    <View style={styles.row}>
-                      <TextInput 
-                        style={[styles.input, styles.flex1]} 
-                        placeholderTextColor={theme.colors.textSecondary} 
-                        placeholder="IPD ID (e.g. 783918)" 
-                        value={form.ipdId} 
-                        onChangeText={(t) => updateField('ipdId', t)} 
-                        keyboardType="number-pad"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                      />
-                      <View style={styles.spacer} />
-                      <TextInput 
-                        style={[styles.input, styles.flex1]} 
-                        placeholderTextColor={theme.colors.textSecondary} 
-                        placeholder="IP Number" 
-                        value={form.ipNumber} 
-                        onChangeText={(t) => updateField('ipNumber', t)} 
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                      />
-                    </View>
-                    <View style={styles.row}>
-                      <TextInput 
-                        style={[styles.input, styles.flex1]} 
-                        placeholderTextColor={theme.colors.textSecondary} 
-                        placeholder="Bed No" 
-                        value={form.bedNo} 
-                        onChangeText={(t) => updateField('bedNo', t)} 
-                        keyboardType="number-pad"
-                        autoCapitalize="none"
-                        autoCorrect={false}
-                      />
-                      <View style={styles.spacer} />
-                      <TextInput 
-                        style={[styles.input, styles.flex1]} 
-                        placeholderTextColor={theme.colors.textSecondary} 
-                        placeholder="Room Type" 
-                        value={form.roomType} 
-                        onChangeText={(t) => updateField('roomType', t)} 
-                        autoCapitalize="words"
-                      />
-                    </View>
-                    <TextInput 
-                      style={styles.input} 
-                      placeholderTextColor={theme.colors.textSecondary} 
-                      placeholder="Ward Name" 
-                      value={form.wardName} 
-                      onChangeText={(t) => updateField('wardName', t)} 
-                      autoCapitalize="words"
-                    />
+                <Text style={styles.sectionTitle}>Ward & Location Details</Text>
+                <View>
+                  <View style={styles.row}>
+                    <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="IPD ID (e.g. 783918)" value={form.ipdId} onChangeText={(t) => updateField('ipdId', t)} />
+                    <View style={styles.spacer} />
+                    <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="IP Number" value={form.ipNumber} onChangeText={(t) => updateField('ipNumber', t)} />
+                  </View>
 
-                    <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Consultant Incharge" value={form.inchargeDoctor} onChangeText={(t) => updateField('inchargeDoctor', t)} />
-                    <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Collaborators (comma separated e.g. Dr. Susan Giri)" value={form.additionalDoctors} onChangeText={(t) => updateField('additionalDoctors', t)} />
-                  </Animated.View>
-                )}
+                  <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Ward Name" value={form.wardName} onChangeText={(t) => updateField('wardName', t)} />
+                  
+                  <View style={styles.row}>
+                    <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Room Type (e.g. CABIN)" value={form.roomType} onChangeText={(t) => updateField('roomType', t)} />
+                    <View style={styles.spacer} />
+                    <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Bed No (e.g. 1701)" value={form.bedNo} onChangeText={(t) => updateField('bedNo', t)} />
+                  </View>
+
+                  <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Consultant Incharge" value={form.inchargeDoctor} onChangeText={(t) => updateField('inchargeDoctor', t)} />
+                  <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Collaborators (comma separated e.g. Dr. Susan Giri)" value={form.additionalDoctors} onChangeText={(t) => updateField('additionalDoctors', t)} />
+                </View>
               </View>
 
               {/* Timeline */}
               <View style={styles.card}>
-                <TouchableOpacity 
-                  style={styles.collapsibleHeader} 
-                  onPress={() => toggleCollapsed('timeline')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.sectionTitle}>Timeline</Text>
-                  {collapsed.timeline ? (
-                    <ChevronRight size={18} color={theme.colors.primary} />
-                  ) : (
-                    <ChevronDown size={18} color={theme.colors.primary} />
-                  )}
-                </TouchableOpacity>
-                {!collapsed.timeline && (
-                  <Animated.View entering={FadeInUp.duration(200)}>
-                    <View style={styles.row}>
-                      <DateInput label="Adm. Date" field="dateOfAdmission" />
-                      <View style={styles.spacer} />
-                      <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Admission Time" value={form.admissionTime} onChangeText={(t) => updateField('admissionTime', t)} />
-                    </View>
-                    <View style={styles.row}>
-                      <DateInput label="Op. Date" field="dateOfOperation" />
-                      <View style={styles.spacer} />
-                      <DateInput label="Disch. Date" field="dateOfDischarge" />
-                    </View>
-                    <View style={styles.row}>
-                      <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Stay Duration" value={form.stayDuration} onChangeText={(t) => updateField('stayDuration', t)} />
-                      <View style={styles.spacer} />
-                      <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Post-Op Stay" value={form.postOpStay} onChangeText={(t) => updateField('postOpStay', t)} />
-                    </View>
-                  </Animated.View>
-                )}
+                <Text style={styles.sectionTitle}>Timeline</Text>
+                <View>
+                  <View style={styles.row}>
+                    <DateInput label="Adm. Date" field="dateOfAdmission" />
+                    <View style={styles.spacer} />
+                    <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Admission Time" value={form.admissionTime} onChangeText={(t) => updateField('admissionTime', t)} />
+                  </View>
+                  <View style={styles.row}>
+                    <DateInput label="Op. Date" field="dateOfOperation" />
+                    <View style={styles.spacer} />
+                    <DateInput label="Disch. Date" field="dateOfDischarge" />
+                  </View>
+                  <View style={styles.row}>
+                    <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Stay Duration" value={form.stayDuration} onChangeText={(t) => updateField('stayDuration', t)} />
+                    <View style={styles.spacer} />
+                    <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Post-Op Stay" value={form.postOpStay} onChangeText={(t) => updateField('postOpStay', t)} />
+                  </View>
+                </View>
               </View>
             </>
           ) : (
             <>
               {/* Outpatient OPD Details */}
               <View style={styles.card}>
-                <TouchableOpacity 
-                  style={styles.collapsibleHeader} 
-                  onPress={() => toggleCollapsed('location')}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.sectionTitle}>OPD Consultation Details</Text>
-                  {collapsed.location ? (
-                    <ChevronRight size={18} color={theme.colors.primary} />
-                  ) : (
-                    <ChevronDown size={18} color={theme.colors.primary} />
-                  )}
-                </TouchableOpacity>
-                {!collapsed.location && (
-                  <Animated.View entering={FadeInUp.duration(200)}>
-                    <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="OPD Ticket Number (e.g. OPD-2025-102)" value={form.ipNumber} onChangeText={(t) => updateField('ipNumber', t)} />
-                    <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Consultant Incharge" value={form.inchargeDoctor} onChangeText={(t) => updateField('inchargeDoctor', t)} />
-                    <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Collaborators (comma separated)" value={form.additionalDoctors} onChangeText={(t) => updateField('additionalDoctors', t)} />
-                    
-                    <View style={styles.row}>
-                      <DateInput label="Consultation Date" field="dateOfAdmission" />
-                      <View style={styles.spacer} />
-                      <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Consultation Time" value={form.admissionTime} onChangeText={(t) => updateField('admissionTime', t)} />
-                    </View>
-                  </Animated.View>
-                )}
+                <Text style={styles.sectionTitle}>OPD Consultation Details</Text>
+                <View>
+                  <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="OPD Ticket Number (e.g. OPD-2025-102)" value={form.ipNumber} onChangeText={(t) => updateField('ipNumber', t)} />
+                  <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Consultant Incharge" value={form.inchargeDoctor} onChangeText={(t) => updateField('inchargeDoctor', t)} />
+                  <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Collaborators (comma separated)" value={form.additionalDoctors} onChangeText={(t) => updateField('additionalDoctors', t)} />
+                  
+                  <View style={styles.row}>
+                    <DateInput label="Consultation Date" field="dateOfAdmission" />
+                    <View style={styles.spacer} />
+                    <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Consultation Time" value={form.admissionTime} onChangeText={(t) => updateField('admissionTime', t)} />
+                  </View>
+                </View>
               </View>
             </>
           )}
 
           {/* Clinical & Examination */}
           <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.collapsibleHeader} 
-              onPress={() => toggleCollapsed('clinical')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.sectionTitle}>Clinical & Examination</Text>
-              {collapsed.clinical ? (
-                <ChevronRight size={18} color={theme.colors.primary} />
-              ) : (
-                <ChevronDown size={18} color={theme.colors.primary} />
-              )}
-            </TouchableOpacity>
-            {!collapsed.clinical && (
-              <Animated.View entering={FadeInUp.duration(200)}>
-                <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Diagnosis" value={form.diagnosis} onChangeText={(t) => updateField('diagnosis', t)} />
-                <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Nature (Malignant/Benign)" value={form.natureOfDisease} onChangeText={(t) => updateField('natureOfDisease', t)} />
-                <TextInput 
-                  style={[styles.input, styles.textArea]} 
-                  placeholderTextColor={theme.colors.textSecondary} 
-                  placeholder="History of Present Illness" 
-                  multiline 
-                  value={form.historyOfPresentIllness} 
-                  onChangeText={(t) => updateField('historyOfPresentIllness', t)} 
-                />
-                <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="General Examination" value={form.generalExam} onChangeText={(t) => updateField('generalExam', t)} />
-                <View style={styles.row}>
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Weight (kg)" keyboardType="numeric" value={form.weight} onChangeText={(t) => updateField('weight', t)} />
-                  <View style={styles.spacer} />
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Height (ft or m)" value={form.height} onChangeText={(t) => updateField('height', t)} />
-                </View>
-                <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Abdomen Examination" value={form.abdomenExam} onChangeText={(t) => updateField('abdomenExam', t)} />
-              </Animated.View>
-            )}
+            <Text style={styles.sectionTitle}>Clinical & Examination</Text>
+            <View>
+              <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Diagnosis" value={form.diagnosis} onChangeText={(t) => updateField('diagnosis', t)} />
+              <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Nature (Malignant/Benign)" value={form.natureOfDisease} onChangeText={(t) => updateField('natureOfDisease', t)} />
+              <TextInput 
+                style={[styles.input, styles.textArea]} 
+                placeholderTextColor={theme.colors.textSecondary} 
+                placeholder="History of Present Illness" 
+                multiline 
+                value={form.historyOfPresentIllness} 
+                onChangeText={(t) => updateField('historyOfPresentIllness', t)} 
+              />
+              <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="General Examination" value={form.generalExam} onChangeText={(t) => updateField('generalExam', t)} />
+              <View style={styles.row}>
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Weight (kg)" keyboardType="numeric" value={form.weight} onChangeText={(t) => updateField('weight', t)} />
+                <View style={styles.spacer} />
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Height (ft or m)" value={form.height} onChangeText={(t) => updateField('height', t)} />
+              </View>
+              <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Abdomen Examination" value={form.abdomenExam} onChangeText={(t) => updateField('abdomenExam', t)} />
+            </View>
           </View>
 
           {/* Operative Details */}
           <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.collapsibleHeader} 
-              onPress={() => toggleCollapsed('operative')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.sectionTitle}>Operative Details</Text>
-              {collapsed.operative ? (
-                <ChevronRight size={18} color={theme.colors.primary} />
-              ) : (
-                <ChevronDown size={18} color={theme.colors.primary} />
-              )}
-            </TouchableOpacity>
-            {!collapsed.operative && (
-              <Animated.View entering={FadeInUp.duration(200)}>
-                <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Operation Name" value={form.operation} onChangeText={(t) => updateField('operation', t)} />
-                <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Surgeon" value={form.surgeon} onChangeText={(t) => updateField('surgeon', t)} />
-                <View style={styles.row}>
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Assistant 1" value={form.assistant1} onChangeText={(t) => updateField('assistant1', t)} />
-                  <View style={styles.spacer} />
-                  <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Assistant 2" value={form.assistant2} onChangeText={(t) => updateField('assistant2', t)} />
-                </View>
-                <TextInput 
-                  style={[styles.input, styles.textArea]} 
-                  placeholderTextColor={theme.colors.textSecondary} 
-                  placeholder="Operative Findings" 
-                  multiline 
-                  value={form.operationFindings} 
-                  onChangeText={(t) => updateField('operationFindings', t)} 
-                />
-                <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="HPE Report" value={form.hpeReport} onChangeText={(t) => updateField('hpeReport', t)} />
-              </Animated.View>
-            )}
+            <Text style={styles.sectionTitle}>Operative Details</Text>
+            <View>
+              <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Operation Name" value={form.operation} onChangeText={(t) => updateField('operation', t)} />
+              <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Surgeon" value={form.surgeon} onChangeText={(t) => updateField('surgeon', t)} />
+              <View style={styles.row}>
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Assistant 1" value={form.assistant1} onChangeText={(t) => updateField('assistant1', t)} />
+                <View style={styles.spacer} />
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Assistant 2" value={form.assistant2} onChangeText={(t) => updateField('assistant2', t)} />
+              </View>
+              <TextInput 
+                style={[styles.input, styles.textArea]} 
+                placeholderTextColor={theme.colors.textSecondary} 
+                placeholder="Operative Findings" 
+                multiline 
+                value={form.operationFindings} 
+                onChangeText={(t) => updateField('operationFindings', t)} 
+              />
+              <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="HPE Report" value={form.hpeReport} onChangeText={(t) => updateField('hpeReport', t)} />
+            </View>
           </View>
 
           {/* Initial Lab Investigations */}
           <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.collapsibleHeader} 
-              onPress={() => toggleCollapsed('labs')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.sectionTitle}>Initial Lab Investigations</Text>
-              {collapsed.labs ? (
-                <ChevronRight size={18} color={theme.colors.primary} />
-              ) : (
-                <ChevronDown size={18} color={theme.colors.primary} />
-              )}
-            </TouchableOpacity>
-            {!collapsed.labs && (
-              <Animated.View entering={FadeInUp.duration(200)}>
-                <View style={styles.row}>
-                  <TextInput 
-                    style={[styles.input, styles.flex1]} 
-                    placeholderTextColor={theme.colors.textSecondary} 
-                    placeholder="Hb" 
-                    value={form.hb} 
-                    onChangeText={(t) => updateField('hb', t)} 
-                    keyboardType="decimal-pad"
-                  />
-                  <View style={styles.spacer} />
-                  <TextInput 
-                    style={[styles.input, styles.flex1]} 
-                    placeholderTextColor={theme.colors.textSecondary} 
-                    placeholder="TC" 
-                    value={form.tc} 
-                    onChangeText={(t) => updateField('tc', t)} 
-                    keyboardType="number-pad"
-                  />
-                  <View style={styles.spacer} />
-                  <TextInput 
-                    style={[styles.input, styles.flex1]} 
-                    placeholderTextColor={theme.colors.textSecondary} 
-                    placeholder="Neu" 
-                    value={form.neu} 
-                    onChangeText={(t) => updateField('neu', t)} 
-                    keyboardType="decimal-pad"
-                  />
-                </View>
-                <View style={styles.row}>
-                  <TextInput 
-                    style={[styles.input, styles.flex1]} 
-                    placeholderTextColor={theme.colors.textSecondary} 
-                    placeholder="Lym" 
-                    value={form.lym} 
-                    onChangeText={(t) => updateField('lym', t)} 
-                    keyboardType="decimal-pad"
-                  />
-                  <View style={styles.spacer} />
-                  <TextInput 
-                    style={[styles.input, styles.flex1]} 
-                    placeholderTextColor={theme.colors.textSecondary} 
-                    placeholder="Platelets" 
-                    value={form.platelets} 
-                    onChangeText={(t) => updateField('platelets', t)} 
-                    keyboardType="number-pad"
-                  />
-                </View>
-                <View style={styles.row}>
-                  <TextInput 
-                    style={[styles.input, styles.flex1]} 
-                    placeholderTextColor={theme.colors.textSecondary} 
-                    placeholder="PT" 
-                    value={form.pt} 
-                    onChangeText={(t) => updateField('pt', t)} 
-                    keyboardType="decimal-pad"
-                  />
-                  <View style={styles.spacer} />
-                  <TextInput 
-                    style={[styles.input, styles.flex1]} 
-                    placeholderTextColor={theme.colors.textSecondary} 
-                    placeholder="INR" 
-                    value={form.inr} 
-                    onChangeText={(t) => updateField('inr', t)} 
-                    keyboardType="decimal-pad"
-                  />
-                </View></Animated.View>
-            )}
+            <Text style={styles.sectionTitle}>Initial Lab Investigations</Text>
+            <View>
+              <View style={styles.row}>
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Hb" value={form.hb} onChangeText={(t) => updateField('hb', t)} />
+                <View style={styles.spacer} />
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="TC" value={form.tc} onChangeText={(t) => updateField('tc', t)} />
+                <View style={styles.spacer} />
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Neu" value={form.neu} onChangeText={(t) => updateField('neu', t)} />
+              </View>
+              <View style={styles.row}>
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Lym" value={form.lym} onChangeText={(t) => updateField('lym', t)} />
+                <View style={styles.spacer} />
+                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Platelets" value={form.platelets} onChangeText={(t) => updateField('platelets', t)} />
+              </View>
+            </View>
           </View>
 
           {/* Media Attachments */}
           <View style={styles.card}>
-            <TouchableOpacity 
-              style={styles.collapsibleHeader} 
-              onPress={() => toggleCollapsed('attachments')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.sectionTitle}>Media & Case Files</Text>
-              {collapsed.attachments ? (
-                <ChevronRight size={18} color={theme.colors.primary} />
-              ) : (
-                <ChevronDown size={18} color={theme.colors.primary} />
-              )}
-            </TouchableOpacity>
-            {!collapsed.attachments && (
-              <Animated.View entering={FadeInUp.duration(200)}>
-                <MediaAttachment 
-                  attachments={form.attachments} 
-                  onAdd={(uri) => updateField('attachments', [...form.attachments, uri])} 
-                  onRemove={(idx) => updateField('attachments', form.attachments.filter((_, i) => i !== idx))} 
-                />
-              </Animated.View>
-            )}
+            <Text style={styles.sectionTitle}>Media & Case Files</Text>
+            <View>
+              <MediaAttachment 
+                attachments={form.attachments} 
+                onAdd={(uri) => updateField('attachments', [...form.attachments, uri])} 
+                onRemove={(idx) => updateField('attachments', form.attachments.filter((_, i) => i !== idx))} 
+              />
+            </View>
           </View>
-        </ScrollView>
 
-        {/* Fixed Save Button Footer */}
-        <View style={[styles.fixedFooter, { paddingBottom: Math.max(initialBottomInset, theme.spacing.md) }]}>
+        {/* Save Button Footer inside ScrollView */}
+        <View style={styles.footerContainer}>
           <AnimatedPressable 
             style={[styles.saveBtn, saving && styles.saveBtnDisabled]} 
             onPress={handleSave}
@@ -650,7 +361,7 @@ const AddPatientScreen = ({ navigation, route }) => {
             )}
           </AnimatedPressable>
         </View>
-      </KeyboardAvoidingViewWrapper>
+      </KeyboardAwareScrollView>
 
       {datePickerField && (
         <DateTimePicker
@@ -660,14 +371,14 @@ const AddPatientScreen = ({ navigation, route }) => {
           onChange={onDateChange}
         />
       )}
-    </ClinicalCanvas>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  canvas: { flex: 1, backgroundColor: theme.colors.background, paddingBottom: 0 },
-  container: { flex: 1 },
-  scroll: { padding: theme.spacing.lg, paddingBottom: 100 },
+  screenWrapper: { flex: 1, backgroundColor: theme.colors.background },
+  scrollContainer: { flex: 1 },
+  scroll: { padding: theme.spacing.lg, paddingBottom: 80 },
   card: { 
     backgroundColor: theme.colors.surface, 
     borderRadius: theme.borderRadius.md, 
@@ -703,12 +414,9 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   saveBtnText: { ...theme.typography.h3, color: theme.colors.surface },
-  fixedFooter: {
-    backgroundColor: theme.colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    paddingHorizontal: theme.spacing.lg,
-    paddingVertical: theme.spacing.md,
+  footerContainer: {
+    marginTop: theme.spacing.lg,
+    marginBottom: theme.spacing.md,
   },
   collapsibleHeader: {
     flexDirection: 'row',

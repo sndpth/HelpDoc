@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, StatusBar, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, StatusBar, Platform } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
 import { ChevronLeft, FileCheck, Share2, Clock, User, Stethoscope, Pill, Calendar, ClipboardList, RefreshCw } from 'lucide-react-native';
 import { theme, getSpringConfig } from '../constants/theme';
@@ -8,6 +9,7 @@ import useStore from '../store/useStore';
 import { sendRoomMessage } from '../services/socket';
 import AnimatedMount from '../components/AnimatedMount';
 import AnimatedPressable from '../components/AnimatedPressable';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DischargeSummaryScreen = ({ route, navigation }) => {
   const { patientId } = route.params;
@@ -15,6 +17,9 @@ const DischargeSummaryScreen = ({ route, navigation }) => {
   const { generateDischarge, fetchDischarge, getOrCreatePatientChat } = useStore();
   
   const patient = patients.find(p => p.recordID === patientId);
+
+  const insets = useSafeAreaInsets();
+
 
   const [summaries, setSummaries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -170,7 +175,7 @@ const DischargeSummaryScreen = ({ route, navigation }) => {
   );
 
   return (
-    <ClinicalCanvas style={styles.container}>
+    <ClinicalCanvas style={[styles.container, { paddingBottom: 0 }]}>
       <StatusBar barStyle="dark-content" />
       
       {/* Toast Alert */}
@@ -194,7 +199,13 @@ const DischargeSummaryScreen = ({ route, navigation }) => {
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <KeyboardAwareScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 80) }]} 
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bottomOffset={40}
+      >
         {/* Patient Banner */}
         <AnimatedMount slide delay={0}>
           <View style={styles.patientBanner}>
@@ -271,13 +282,14 @@ const DischargeSummaryScreen = ({ route, navigation }) => {
             </AnimatedMount>
           ))
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </ClinicalCanvas>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
+  scrollContainer: { flex: 1 },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.sm,

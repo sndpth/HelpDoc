@@ -538,7 +538,7 @@ const VitalsScreen = ({ route, navigation }) => {
         title="Record Daily Vitals"
         height="85%"
       >
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
           
           {/* Date & Time selectors */}
           <View style={styles.modalGridRow}>

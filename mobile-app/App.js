@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StatusBar } from 'react-native';
 import { NavigationContainer, getFocusedRouteNameFromRoute } from '@react-navigation/native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Stethoscope, MessageCircle, User } from 'lucide-react-native';
@@ -188,21 +189,23 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <View style={{ flex: 1 }}>
-        <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
-        <NavigationContainer>
-          {isLoggedIn ? <MainTabs /> : <LoginScreen />}
-        </NavigationContainer>
-        {showSplash && (
-          <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', zIndex: 999 }, splashAnimatedStyle]}>
-            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-              <Stethoscope size={28} color="#FFF" />
-            </View>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: theme.colors.primary, marginBottom: 4, fontFamily: theme.typography.fontFamily }}>HelpDoc</Text>
-            <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontFamily: theme.typography.fontFamily }}>Loading clinical workspace...</Text>
-          </Animated.View>
-        )}
-      </View>
+      <KeyboardProvider>
+        <View style={{ flex: 1 }}>
+          <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+          <NavigationContainer>
+            {isLoggedIn ? <MainTabs /> : <LoginScreen />}
+          </NavigationContainer>
+          {showSplash && (
+            <Animated.View style={[{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', zIndex: 999 }, splashAnimatedStyle]}>
+              <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: theme.colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <Stethoscope size={28} color="#FFF" />
+              </View>
+              <Text style={{ fontSize: 20, fontWeight: '900', color: theme.colors.primary, marginBottom: 4, fontFamily: theme.typography.fontFamily }}>HelpDoc</Text>
+              <Text style={{ fontSize: 12, color: theme.colors.textSecondary, fontFamily: theme.typography.fontFamily }}>Loading clinical workspace...</Text>
+            </Animated.View>
+          )}
+        </View>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }
