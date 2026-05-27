@@ -66,10 +66,34 @@ const EMRDashboard = ({ navigation }) => {
     return status.toLowerCase() === activeTab.toLowerCase();
   });
 
-  // treat active inpatients for top slider
+  // treat active inpatients for top slider (only those directly related to the logged in doctor)
   const admittedPatients = filteredPatients.filter(p => {
     const status = p.status || (p.dateOfDischarge ? 'Discharged' : 'Admitted');
-    return status === 'Admitted';
+    if (status !== 'Admitted') return false;
+
+    const docName = userProfile?.name;
+    if (!docName) return false;
+
+    const cleanDoc = docName.toLowerCase().replace(/^dr\.\s*/, '').trim();
+
+    if (p.inchargeDoctor) {
+      const cleanIncharge = p.inchargeDoctor.toLowerCase().replace(/^dr\.\s*/, '').trim();
+      if (cleanIncharge === cleanDoc) return true;
+    }
+
+    if (p.additionalDoctors) {
+      const collaborators = Array.isArray(p.additionalDoctors)
+        ? p.additionalDoctors
+        : typeof p.additionalDoctors === 'string'
+          ? p.additionalDoctors.split(',').map(d => d.trim())
+          : [];
+      return collaborators.some(collab => {
+        const cleanCollab = collab.toLowerCase().replace(/^dr\.\s*/, '').trim();
+        return cleanCollab === cleanDoc;
+      });
+    }
+
+    return false;
   });
 
   const handlePatientPress = (patient) => {
@@ -279,7 +303,7 @@ const EMRDashboard = ({ navigation }) => {
             {(admittedPatients.length > 0 || isLoading) && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Active Inpatients ({admittedPatients.length})</Text>
+                  <Text style={styles.sectionTitle}>My Active Patients ({admittedPatients.length})</Text>
                   <AnimatedPressable onPress={() => setActiveTab('Admitted')}>
                     <Text style={styles.viewAllText}>View list</Text>
                   </AnimatedPressable>
