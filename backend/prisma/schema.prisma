@@ -49,7 +49,7 @@ model Patient {
   dateOfDischarge         String?
   stayDuration            String?
   postOpStay              String?
-  wardName                String?        @default("A SURESH WAGLE GENERAL WARD")
+  wardName                String?        @default("General Ward")
   roomType                String?        @default("SINGLE BED CABIN")
   bedNo                   String?
   inchargeDoctor          String?        @default("Dr. Niraj Bam")

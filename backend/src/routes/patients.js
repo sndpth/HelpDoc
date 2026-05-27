@@ -72,7 +72,7 @@ router.post('/', authenticateToken, async (req, res) => {
         dateOfDischarge: data.dateOfDischarge || '',
         stayDuration: data.stayDuration || '',
         postOpStay: data.postOpStay || '',
-        wardName: data.wardName || 'A SURESH WAGLE GENERAL WARD',
+        wardName: data.wardName || 'General Ward',
         roomType: data.roomType || 'SINGLE BED CABIN',
         bedNo: data.bedNo || '',
         inchargeDoctor: data.inchargeDoctor || req.user.name,
