@@ -67,6 +67,7 @@ export default function BottomSheet({
       visible={shouldRender}
       animationType="none"
       onRequestClose={onClose}
+      statusBarTranslucent={true}
     >
       <TouchableWithoutFeedback onPress={onClose}>
         <Animated.View style={[styles.backdrop, animatedBackdropStyle]} />
@@ -77,7 +78,7 @@ export default function BottomSheet({
         style={styles.avoidingView}
         enabled={keyboardVisible}
       >
-        <Animated.View style={[styles.contentContainer, { height }, animatedContentStyle]}>
+        <Animated.View style={[styles.contentContainer, { maxHeight: height }, animatedContentStyle]}>
           {/* Handle Bar */}
           <View style={styles.handleBar} />
 
@@ -156,6 +157,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.borderLight,
   },
   content: {
-    flex: 1,
+    flexShrink: 1,
   },
 });
