@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableWithoutFeedback, Platform, Dimensions, Keyboard } from 'react-native';
-import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import { View, Text, StyleSheet, Modal, TouchableWithoutFeedback, Platform, Dimensions, Keyboard, KeyboardAvoidingView } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, runOnJS } from 'react-native-reanimated';
 import { X } from 'lucide-react-native';
 import { theme, getSpringConfig, getTimingConfig } from '../constants/theme';
@@ -59,7 +58,7 @@ export default function BottomSheet({
       </TouchableWithoutFeedback>
 
       <KeyboardAvoidingView
-        behavior="padding"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.avoidingView}
       >
         <Animated.View style={[styles.contentContainer, { height }, animatedContentStyle]}>
