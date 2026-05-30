@@ -34,10 +34,7 @@ const AddPatientScreen = ({ navigation, route }) => {
     return {
       type: 'IPD',
       fullName: '',
-      ipNumber: '',
-      ipdId: '',
-      patientId: '',
-      fileNo: '',
+      ipid: '',
       age: '',
       gender: '',
       address: '',
@@ -185,11 +182,7 @@ const AddPatientScreen = ({ navigation, route }) => {
             <View>
               <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Patient Full Name" value={form.fullName} onChangeText={(t) => updateField('fullName', t)} />
               
-              <View style={styles.row}>
-                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Patient ID (e.g. 81552753)" value={form.patientId} onChangeText={(t) => updateField('patientId', t)} />
-                <View style={styles.spacer} />
-                <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="File No (e.g. F-8812)" value={form.fileNo} onChangeText={(t) => updateField('fileNo', t)} />
-              </View>
+              <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="IPID / Inpatient ID (e.g. 81552753)" value={form.ipid} onChangeText={(t) => updateField('ipid', t)} />
 
               <View style={styles.row}>
                 <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="Age" keyboardType="numeric" value={form.age.toString()} onChangeText={(t) => updateField('age', t)} />
@@ -206,12 +199,6 @@ const AddPatientScreen = ({ navigation, route }) => {
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>Ward & Location Details</Text>
                 <View>
-                  <View style={styles.row}>
-                    <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="IPD ID (e.g. 783918)" value={form.ipdId} onChangeText={(t) => updateField('ipdId', t)} />
-                    <View style={styles.spacer} />
-                    <TextInput style={[styles.input, styles.flex1]} placeholderTextColor={theme.colors.textSecondary} placeholder="IP Number" value={form.ipNumber} onChangeText={(t) => updateField('ipNumber', t)} />
-                  </View>
-
                   <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Ward Name" value={form.wardName} onChangeText={(t) => updateField('wardName', t)} />
                   
                   <View style={styles.row}>
@@ -253,7 +240,6 @@ const AddPatientScreen = ({ navigation, route }) => {
               <View style={styles.card}>
                 <Text style={styles.sectionTitle}>OPD Consultation Details</Text>
                 <View>
-                  <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="OPD Ticket Number (e.g. OPD-2025-102)" value={form.ipNumber} onChangeText={(t) => updateField('ipNumber', t)} />
                   <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Consultant Incharge" value={form.inchargeDoctor} onChangeText={(t) => updateField('inchargeDoctor', t)} />
                   <TextInput style={styles.input} placeholderTextColor={theme.colors.textSecondary} placeholder="Collaborators (comma separated)" value={form.additionalDoctors} onChangeText={(t) => updateField('additionalDoctors', t)} />
                   

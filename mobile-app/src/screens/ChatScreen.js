@@ -365,7 +365,7 @@ const ChatScreen = ({ route, navigation }) => {
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.patientShareItem} onPress={() => handleSharePatient(item)}>
                 <Text style={styles.shareItemName}>{item.fullName}</Text>
-                <Text style={styles.shareItemDetails}>{item.ipNumber || 'No IP'} • {item.diagnosis || 'No Diagnosis'}</Text>
+                <Text style={styles.shareItemDetails}>{(item.ipid ? `IPID: ${item.ipid}` : 'No IPID')} • {item.diagnosis || 'No Diagnosis'}</Text>
               </TouchableOpacity>
             )}
           />

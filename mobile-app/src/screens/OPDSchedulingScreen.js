@@ -232,7 +232,7 @@ const OPDSchedulingScreen = ({ navigation }) => {
                         </View>
                         <View style={styles.patientMeta}>
                           <Text style={styles.patientName}>{app.patient?.fullName}</Text>
-                          <Text style={styles.patientSub}>ID: {app.patient?.patientId || 'N/A'}</Text>
+                          <Text style={styles.patientSub}>IPID: {app.patient?.ipid || 'N/A'}</Text>
                         </View>
                       </TouchableOpacity>
                       <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
@@ -409,7 +409,7 @@ const OPDSchedulingScreen = ({ navigation }) => {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.patientSelectName}>{p.fullName}</Text>
-                  <Text style={styles.patientSelectSub}>{p.patientId || p.recordID} ({p.age} Y / {p.gender})</Text>
+                  <Text style={styles.patientSelectSub}>{p.ipid || p.recordID} ({p.age} Y / {p.gender})</Text>
                 </View>
               </TouchableOpacity>
             ))}

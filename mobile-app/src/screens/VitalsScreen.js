@@ -190,7 +190,7 @@ const VitalsScreen = ({ route, navigation }) => {
   const offlineQueue = useStore((state) => state.offlineQueue || []);
   const pendingCount = offlineQueue.length;
   
-  const patient = patients.find(p => p.recordID === routePatientId || p.patientId === routePatientId) || patients[0];
+  const patient = patients.find(p => p.recordID === routePatientId || p.ipid === routePatientId) || patients[0];
   
   const [activeCategory, setActiveCategory] = useState(VITAL_TYPES.BP);
   const [showChart, setShowChart] = useState(false);
@@ -357,8 +357,7 @@ const VitalsScreen = ({ route, navigation }) => {
         {/* Metadata Header */}
         <View style={styles.metadataHeader}>
           <View style={styles.metaRow}>
-            <Text style={styles.metaLabel}>IPD ID: <Text style={styles.metaVal}>{patient.ipdId || '783918'}</Text></Text>
-            <Text style={styles.metaLabel}>Patient ID: <Text style={styles.metaVal}>{patient.patientId || '81552753'}</Text></Text>
+            <Text style={styles.metaLabel}>IPID: <Text style={styles.metaVal}>{patient.ipid || '81552753'}</Text></Text>
           </View>
           <Text style={styles.admissionText}>Admission: {patient.dateOfAdmission} {patient.admissionTime || '12:05 PM'}</Text>
         </View>

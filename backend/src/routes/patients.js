@@ -58,10 +58,7 @@ router.post('/', authenticateToken, async (req, res) => {
     const patient = await prisma.patient.create({
       data: {
         fullName: data.fullName,
-        ipdId: data.ipdId || '',
-        patientId: data.patientId || '',
-        fileNo: data.fileNo || 'N/A',
-        ipNumber: data.ipNumber || '',
+        ipid: data.ipid || Math.floor(10000000 + Math.random() * 90000000).toString(),
         type: data.type || 'IPD',
         age: parseInt(data.age, 10) || 0,
         gender: data.gender,
@@ -198,7 +195,7 @@ router.get('/appointments/upcoming', authenticateToken, async (req, res) => {
           select: {
             recordID: true,
             fullName: true,
-            patientId: true,
+            ipid: true,
             gender: true,
             age: true
           }
@@ -269,10 +266,7 @@ router.put('/:recordID', authenticateToken, async (req, res) => {
       where: { recordID },
       data: {
         fullName: data.fullName !== undefined ? data.fullName : existing.fullName,
-        ipdId: data.ipdId !== undefined ? data.ipdId : existing.ipdId,
-        patientId: data.patientId !== undefined ? data.patientId : existing.patientId,
-        fileNo: data.fileNo !== undefined ? data.fileNo : existing.fileNo,
-        ipNumber: data.ipNumber !== undefined ? data.ipNumber : existing.ipNumber,
+        ipid: data.ipid !== undefined ? data.ipid : existing.ipid,
         type: data.type !== undefined ? data.type : existing.type,
         age: data.age !== undefined ? parseInt(data.age, 10) : existing.age,
         gender: data.gender !== undefined ? data.gender : existing.gender,

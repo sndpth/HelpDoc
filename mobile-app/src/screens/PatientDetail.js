@@ -417,8 +417,7 @@ const PatientDetail = ({ route, navigation }) => {
       {/* Metadata Bar */}
       <View style={styles.metadataHeader}>
         <View style={styles.metaRow}>
-          <Text style={styles.metaLabel}>IPD ID: <Text style={styles.metaVal}>{patient.ipdId || '783918'}</Text></Text>
-          <Text style={styles.metaLabel}>Patient ID: <Text style={styles.metaVal}>{patient.patientId || '81552753'}</Text></Text>
+          <Text style={styles.metaLabel}>IPID: <Text style={styles.metaVal}>{patient.ipid || '81552753'}</Text></Text>
         </View>
         <Text style={styles.admissionText}>Admission: {patient.dateOfAdmission} {patient.admissionTime || '12:05 PM'}</Text>
       </View>

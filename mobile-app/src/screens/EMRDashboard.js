@@ -58,7 +58,7 @@ const EMRDashboard = ({ navigation }) => {
   const filteredPatients = patients.filter(p => 
     p.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (p.diagnosis && p.diagnosis.toLowerCase().includes(searchQuery.toLowerCase())) ||
-    (p.patientId && p.patientId.includes(searchQuery))
+    (p.ipid && p.ipid.includes(searchQuery))
   );
 
   const displayedPatients = filteredPatients.filter(p => {
@@ -119,7 +119,7 @@ const EMRDashboard = ({ navigation }) => {
           </View>
           <View style={styles.patientMeta}>
             <Text style={styles.admittedName}>{item.fullName}</Text>
-            <Text style={styles.admittedSub}>{item.patientId || item.recordID} ({item.age} Y / {item.gender})</Text>
+            <Text style={styles.admittedSub}>{item.ipid || item.recordID} ({item.age} Y / {item.gender})</Text>
           </View>
         </View>
 
@@ -169,7 +169,7 @@ const EMRDashboard = ({ navigation }) => {
                   {badge.label}
                 </Text>
               </View>
-              <Text style={styles.allSub}>{item.patientId || item.recordID} ({item.age} Y / {item.gender})</Text>
+              <Text style={styles.allSub}>{item.ipid || item.recordID} ({item.age} Y / {item.gender})</Text>
               
               <View style={styles.allLocationRow}>
                 {status === 'Admitted' ? (

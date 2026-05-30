@@ -23,7 +23,7 @@ const EMRCard = ({ patient, onPress, style }) => {
           <Text style={styles.name}>{patient.fullName}</Text>
         </View>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{patient.ipNumber}</Text>
+          <Text style={styles.badgeText}>{patient.ipid || 'No IPID'}</Text>
         </View>
       </View>
       

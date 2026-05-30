@@ -36,10 +36,7 @@ model User {
 model Patient {
   recordID                String         @id @default(uuid())
   fullName                String
-  ipdId                   String?
-  patientId               String?
-  fileNo                  String?
-  ipNumber                String?
+  ipid                    String?
   age                     Int
   gender                  String
   address                 String
