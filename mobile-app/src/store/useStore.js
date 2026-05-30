@@ -38,6 +38,18 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      console.log('Unauthorized request (invalid token), logging out...');
+      useStore.getState().logout();
+    }
+    return Promise.reject(error);
+  }
+);
+
+
 // Generate a stable ID once; persist middleware will preserve it across restarts.
 const generateId = () => 'u_' + Math.random().toString(36).substr(2, 6);
 
