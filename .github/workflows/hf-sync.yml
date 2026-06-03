@@ -21,4 +21,11 @@ jobs:
             echo "Error: HF_TOKEN secret is empty or not set in GitHub Secrets!"
             exit 1
           fi
-          git push --force https://sndpth:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/sndpth/doctorsaap-backend HEAD:refs/heads/main
+          git config --global user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          git checkout --orphan hf-deploy
+          git reset
+          git add backend/ Dockerfile .dockerignore .gitignore
+          git commit -m "deploy: Hugging Face Space backend service"
+          git push --force https://sndpth:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/sndpth/doctorsaap-backend hf-deploy:main
+
