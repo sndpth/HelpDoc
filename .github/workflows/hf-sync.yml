@@ -25,7 +25,7 @@ jobs:
           git config --global user.name "GitHub Action"
           git checkout --orphan hf-deploy
           git reset
-          git add backend/ Dockerfile .dockerignore .gitignore
+          git add backend/ Dockerfile .dockerignore .gitignore README.md
           git commit -m "deploy: Hugging Face Space backend service"
           git push --force https://sndpth:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/sndpth/doctorsaap-backend hf-deploy:main
 
